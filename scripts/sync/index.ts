@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../load-env";
 import { parseSources, runSync, type SyncConfig } from "./pipeline.js";
 
 function required(name: string): string {

@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import { buildEmotionProfile } from "./sync/emotions.js";
 import { MANUAL_MOVIE_METADATA } from "./sync/manual-metadata.js";

@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 
 function required(name: string): string {

@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 import { performance } from "node:perf_hooks";
 import { createClient } from "@supabase/supabase-js";
 

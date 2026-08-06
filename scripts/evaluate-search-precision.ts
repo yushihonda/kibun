@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import baseline from "./search-evaluation/baseline.json";
 import { SEARCH_RELEVANCE_CASES } from "./search-evaluation/cases.js";

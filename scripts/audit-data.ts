@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
