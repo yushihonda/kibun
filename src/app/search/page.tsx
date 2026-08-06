@@ -21,8 +21,8 @@ export default async function SearchPage() {
   if (supabase) {
     try {
       [initialMovies, editorialMovies] = await Promise.all([
-        loadCatalogMovies(supabase, { limit: 100 }),
-        loadEditorialMovies(supabase),
+        loadCatalogMovies(supabase, { limit: 48 }),
+        loadEditorialMovies(supabase, { limit: 12 }),
       ]);
     } catch {
       initialMovies = demoMovies;

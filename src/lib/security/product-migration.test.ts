@@ -23,6 +23,13 @@ const rlsRoleSql = readFileSync(
   ),
   "utf8",
 ).toLowerCase();
+const providerLookupPerformanceSql = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/202608070005_provider_lookup_performance.sql",
+  ),
+  "utf8",
+).toLowerCase();
 
 describe("product intelligence migration", () => {
   it("adds the recommendation, feedback and operations data model", () => {
@@ -87,6 +94,12 @@ describe("product intelligence migration", () => {
     );
     expect(rlsRoleSql).not.toContain(
       "grant execute on function public.is_admin() to anon",
+    );
+  });
+
+  it("indexes provider lookups by movie and country", () => {
+    expect(providerLookupPerformanceSql).toContain(
+      "on public.movie_providers (movie_id, country)",
     );
   });
 });

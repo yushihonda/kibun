@@ -4,6 +4,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link
       href="/"
+      prefetch={false}
       className="group inline-flex items-center gap-2"
       aria-label="KIBUN ホーム"
     >

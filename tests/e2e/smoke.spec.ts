@@ -26,6 +26,39 @@ test("feed and search are reachable", async ({ page, request }) => {
     /^[0-9a-f]{8}-[0-9a-f-]{27}$/,
   );
   await expect(movies.first().locator('iframe[title="予告編"]')).toBeAttached();
+  expect(await page.locator('iframe[title="予告編"]').count()).toBe(1);
+
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  const videoSurface = movies.first().getByTestId("feed-video-surface");
+  await expect(videoSurface).toBeVisible();
+  const videoBox = await videoSurface.boundingBox();
+  expect(videoBox?.width).toBeGreaterThanOrEqual(viewport!.width - 1);
+  expect(videoBox?.height).toBeGreaterThanOrEqual(viewport!.height - 1);
+
+  const overviewDisplay = await movies
+    .first()
+    .getByTestId("feed-overview")
+    .evaluate((element) => getComputedStyle(element).display);
+  if (viewport!.width < 768) {
+    expect(overviewDisplay).toBe("none");
+    await expect(
+      movies.first().getByTestId("feed-emotional-tags"),
+    ).toBeHidden();
+    expect(
+      await movies
+        .first()
+        .getByTestId("feed-movie-title")
+        .evaluate((element) => getComputedStyle(element).webkitLineClamp),
+    ).toBe("1");
+    const summaryBox = await movies
+      .first()
+      .getByTestId("feed-summary")
+      .boundingBox();
+    expect(summaryBox?.height).toBeLessThan(180);
+  } else {
+    expect(overviewDisplay).not.toBe("none");
+  }
 
   await page.goto("/search", { waitUntil: "domcontentloaded" });
   await expect(

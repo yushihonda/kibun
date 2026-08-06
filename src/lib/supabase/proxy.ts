@@ -24,6 +24,18 @@ export async function updateSupabaseSession(request: NextRequest) {
     return unconfiguredResponse;
   }
 
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
+  if (!hasAuthCookie) {
+    const anonymousResponse = makeResponse();
+    anonymousResponse.headers.set(
+      "Content-Security-Policy",
+      contentSecurityPolicy,
+    );
+    return anonymousResponse;
+  }
+
   let response = makeResponse();
   const supabase = createServerClient(config.url, config.publishableKey, {
     cookies: {

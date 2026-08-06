@@ -83,13 +83,15 @@ function mapProviders(rows: ProviderJoinRow[]): Provider[] {
 
 export async function loadEditorialMovies(
   supabase: SupabaseClient,
+  options?: { limit?: number },
 ): Promise<Movie[]> {
+  const limit = Math.min(Math.max(options?.limit ?? 24, 1), 24);
   const { data: picks, error: picksError } = await supabase
     .from("editorial_picks")
     .select("movie_id,comment,sort_order")
     .eq("is_featured", true)
     .order("sort_order", { ascending: true })
-    .limit(24);
+    .limit(limit);
 
   if (picksError) throw picksError;
   const pickRows = (picks ?? []) as EditorialPickRow[];
