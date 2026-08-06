@@ -13,7 +13,7 @@
 - TOPフィード: 承認済みYouTube予告編がある実作品だけを表示
 - Meilisearchは使用せず、初期運用を無料枠で完結
 
-アプリ実装、DB migration、本番データ補完、権限監査、PC・モバイルE2Eまで完了しています。残る外部作業は「公開前チェック」に明記したGitHub CLIの導入・認証、Google OAuth規約同意と実端末確認、所有ドメインの接続です。
+アプリ実装、DB migration、本番データ補完、権限監査、PC・モバイルE2E、GitHub管理とActions本番デプロイまで完了しています。残る外部作業は「公開前チェック」に明記したGoogle OAuth規約同意と実端末確認、所有ドメインの接続です。
 
 ## ローカル起動
 
@@ -180,7 +180,7 @@ Cloudflare Workers Buildsを使う場合：
 - Deploy command: `npx opennextjs-cloudflare deploy -- --keep-vars`
 - Node.js: 22
 
-GitHub Actionsでは `.github/workflows/deploy.yml` の `Deploy production` が `main` へのpushと手動実行で起動し、format、lint、typecheck、unit testの通過後に本番へデプロイします。GitHubに次のSecretsを登録してください。
+GitHub Actionsでは `.github/workflows/deploy.yml` の `Deploy production` が `main` へのpushと手動実行で起動し、format、lint、typecheck、unit testの通過後に本番へデプロイします。リポジトリは [yushihonda/kibun](https://github.com/yushihonda/kibun) で管理し、次のSecretsを登録済みです。
 
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
@@ -281,9 +281,9 @@ npm audit
 
 ### Phase 4: 月次自動更新と運用
 
-- [ ] GitHubリポジトリを作成し、コードとmigrationを管理（ローカルに`gh`導入・ログインが必要）
+- [x] GitHubリポジトリを作成し、コードとmigrationを管理
 - [x] GitHub Actionsで毎月1日03:00 UTCの同期workflowを追加
-- [ ] GitHub SecretsへTMDB・Supabaseのサーバー限定キーを登録（リポジトリ作成後）
+- [x] GitHub SecretsへTMDB・Supabaseのサーバー限定キーを登録
 - [x] 手動再実行、タイムアウト、最大3回リトライ、失敗Issue通知を追加
 - [x] CloudflareとSupabaseのエラー、検索ゼロ件率、同期件数を監視
 - [x] DBバックアップと復旧手順を文書化（`docs/operations.md`）
