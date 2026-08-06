@@ -275,7 +275,7 @@ npm audit
 
 - [x] Google Web OAuthクライアントを作成し、Supabase Google Provider、Site URL、Redirect URLsを本番設定（本番からGoogleアカウント選択画面まで確認済み）
 - [x] Google OAuthアプリを「本番環境」へ変更し、全Googleユーザー向けに公開（機密・制限付きスコープなし、データアクセス検証不要）
-- [ ] iOS Safari・Android Chromeの実機で、メールリンクとGoogleログインのcallback完了、ログイン後データ同期を確認（PC・モバイルエミュレーションE2Eは完了）
+- [ ] iOS Safari・Android Chromeの実機で、メールリンクとGoogleログインのcallback完了、ログイン後データ同期を確認（Desktop Chrome、Pixel 7、Desktop Safari/WebKit、iPhone 15 Pro/WebKitのE2Eは完了）
 - [x] ユーザー行動から嗜好プロフィールと関連作品を生成
 - [x] 「あなたへのおすすめ」と推薦理由、パーソナライズ停止設定を追加
 - [x] 未ログイン操作をログイン後に復元
