@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kibun",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-03",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://kibun.kibun-jp.workers.dev",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://ovvezqqdkqcqselwulvl.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dmV6cXFka3FjcXNlbHd1bHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3ODMxODYsImV4cCI6MjEwMTM1OTE4Nn0.QLNVkd5FB8AjKzhMfwmCDucZjAEle8_RSNFWQqZ9X60",
+  },
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "kibun",
+    },
+  ],
+  "images": {
+    "binding": "IMAGES",
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+}

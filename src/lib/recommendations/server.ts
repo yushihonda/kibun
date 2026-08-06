@@ -1,0 +1,170 @@
+import "server-only";
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadCatalogMovies } from "@/lib/movies/catalog";
+import {
+  buildPreferenceProfile,
+  recommendMovies,
+  type RecommendationInteraction,
+} from "@/lib/recommendations/engine";
+import { analyzeSearchQuery } from "@/lib/search/query-intent";
+
+type InteractionRow = {
+  movie_id: string;
+  status: "WATCHED" | "WATCHLIST" | "NONE";
+  is_favorite: boolean;
+  rating: number | null;
+};
+
+type EventRow = {
+  event_name: "search" | "detail_view" | "movie_click";
+  movie_id: string | null;
+  query: string | null;
+};
+
+export async function loadRecommendations(
+  supabase: SupabaseClient,
+  options?: { seedMovieId?: string; limit?: number },
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [
+    { data: preferenceRow },
+    { data: interactionRows },
+    { data: eventData },
+    candidates,
+  ] = await Promise.all([
+    user
+      ? supabase
+          .from("user_preferences")
+          .select(
+            "personalization_enabled,preferred_genres,preferred_emotions,onboarding_completed",
+          )
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    user
+      ? supabase
+          .from("user_movie_interactions")
+          .select("movie_id,status,is_favorite,rating")
+          .eq("user_id", user.id)
+      : Promise.resolve({ data: [] }),
+    user
+      ? supabase
+          .from("product_events")
+          .select("event_name,movie_id,query")
+          .eq("user_id", user.id)
+          .in("event_name", ["search", "detail_view", "movie_click"])
+          .order("created_at", { ascending: false })
+          .limit(80)
+      : Promise.resolve({ data: [] }),
+    loadCatalogMovies(supabase, { limit: 400 }),
+  ]);
+
+  const rows = (interactionRows ?? []) as InteractionRow[];
+  const eventRows = (eventData ?? []) as EventRow[];
+  const signalIds = [
+    ...new Set([
+      ...rows.map((row) => row.movie_id),
+      ...eventRows.flatMap((row) => (row.movie_id ? [row.movie_id] : [])),
+      ...(options?.seedMovieId ? [options.seedMovieId] : []),
+    ]),
+  ];
+  const candidateById = new Map(candidates.map((movie) => [movie.id, movie]));
+  const missingSignalIds = signalIds.filter((id) => !candidateById.has(id));
+  const signalMovies = missingSignalIds.length
+    ? await loadCatalogMovies(supabase, {
+        limit: missingSignalIds.length,
+        movieIds: missingSignalIds,
+      })
+    : [];
+  for (const movie of signalMovies) candidateById.set(movie.id, movie);
+
+  const interactions: RecommendationInteraction[] = rows.flatMap((row) => {
+    const movie = candidateById.get(row.movie_id);
+    return movie
+      ? [
+          {
+            movie,
+            status: row.status,
+            isFavorite: row.is_favorite,
+            rating: row.rating,
+          } satisfies RecommendationInteraction,
+        ]
+      : [];
+  });
+  const viewCounts = new Map<string, number>();
+  for (const event of eventRows) {
+    if (event.movie_id) {
+      viewCounts.set(event.movie_id, (viewCounts.get(event.movie_id) ?? 0) + 1);
+    }
+  }
+  for (const [movieId, count] of viewCounts) {
+    const movie = candidateById.get(movieId);
+    if (!movie) continue;
+    interactions.push({
+      movie,
+      status: "NONE",
+      isFavorite: false,
+      rating: null,
+      weight: Math.min(1.5, 0.35 * count),
+      exclude: false,
+    });
+  }
+  const personalizationEnabled =
+    preferenceRow?.personalization_enabled !== false;
+  const seedMovie = options?.seedMovieId
+    ? candidateById.get(options.seedMovieId)
+    : undefined;
+  const searchPlans = eventRows.flatMap((event) =>
+    event.event_name === "search" && event.query
+      ? [analyzeSearchQuery(event.query)]
+      : [],
+  );
+  const historyGenres = [
+    ...new Set(
+      searchPlans.flatMap((plan) =>
+        Object.entries(plan.preferredGenres)
+          .filter(([, weight]) => weight >= 2)
+          .map(([genre]) => genre),
+      ),
+    ),
+  ];
+  const historyEmotions = [
+    ...new Set(searchPlans.flatMap((plan) => plan.preferredEmotionalTags)),
+  ];
+  const profile = buildPreferenceProfile(
+    personalizationEnabled ? interactions : [],
+    {
+      enabled: personalizationEnabled,
+      genres: personalizationEnabled
+        ? [...(preferenceRow?.preferred_genres ?? []), ...historyGenres]
+        : [],
+      emotions: personalizationEnabled
+        ? [...(preferenceRow?.preferred_emotions ?? []), ...historyEmotions]
+        : [],
+    },
+    seedMovie,
+  );
+  const recommendations = recommendMovies(candidates, profile, {
+    limit: options?.limit,
+  });
+  const meaningfulSignals =
+    Boolean(seedMovie) ||
+    (personalizationEnabled &&
+      (interactions.some(
+        (item) => item.isFavorite || item.status !== "NONE" || item.rating,
+      ) ||
+        (preferenceRow?.preferred_genres?.length ?? 0) > 0 ||
+        (preferenceRow?.preferred_emotions?.length ?? 0) > 0 ||
+        eventRows.length > 0));
+
+  return {
+    movies: recommendations,
+    personalized: meaningfulSignals,
+    personalizationEnabled,
+    onboardingCompleted: preferenceRow?.onboarding_completed ?? false,
+    signalCount: interactions.length + eventRows.length,
+  };
+}
