@@ -33,9 +33,11 @@ test("feed and search are reachable", async ({ page, request }) => {
   ).toBeVisible();
   await expect(page.getByText("今の気分に刺さる映画")).toBeVisible();
 
-  await page
-    .getByPlaceholder("例：金曜の夜、何も考えずスカッとしたい")
-    .fill("泣ける");
+  const searchInput = page.getByPlaceholder(
+    "例：金曜の夜、何も考えずスカッとしたい",
+  );
+  await searchInput.pressSequentially("泣ける");
+  await expect(searchInput).toHaveValue("泣ける");
   await expect(page.getByText("泣ける・感動", { exact: true })).toBeVisible();
 
   const firstSearchResult = page
