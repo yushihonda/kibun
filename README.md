@@ -74,7 +74,7 @@ Supabase CLIで適用する前に、必ず対象プロジェクトを確認し�
 
 Googleログイン用にはKIBUN専用Cloudプロジェクト `sunlit-core-504705-g1` とWeb OAuthクライアントを作成済みです。承認済みリダイレクトURIは `https://ovvezqqdkqcqselwulvl.supabase.co/auth/v1/callback`、SupabaseのSite URLは本番URL、Redirect URLsは本番と `http://localhost:3000/auth/callback` に設定済みで、Google Providerも有効化済みです。クライアントシークレットは登録後にローテーションし、旧シークレットを削除しています。メールのマジックリンク認証はGoogleに依存せず、同じアプリ側callbackを利用します。
 
-Google OAuthアプリは現在テスト状態です。一般ユーザーへGoogleログインを公開するには、アカウント所有者がGoogle API Services User Data Policyへ同意し、所有する独自ドメインをOAuth同意画面へ登録して公開状態へ変更します。`workers.dev`のサブドメインはOAuth同意画面のアプリドメインとして保存できないため、独自ドメイン接続後にホーム、プライバシーポリシー、利用規約のURLを登録します。これらはCloudflare Workersへの本番デプロイやメール認証には影響しません。
+Google OAuthアプリは公開ステータスを「本番環境」へ変更済みで、テストユーザー限定ではありません。機密性の高いスコープや制限付きスコープは要求しておらず、Google Auth Platformの検証センターでもデータアクセスの検証は不要と確認済みです。ブランディングは、所有する独自ドメインを接続してからホーム、プライバシーポリシー、利用規約のURLを登録します。`workers.dev`のサブドメインはOAuth同意画面のアプリドメインとして保存できません。これらはCloudflare Workersへの本番デプロイやメール認証には影響しません。
 
 ## TMDB同期
 
@@ -274,7 +274,7 @@ npm audit
 ### Phase 3: ユーザー機能
 
 - [x] Google Web OAuthクライアントを作成し、Supabase Google Provider、Site URL、Redirect URLsを本番設定（本番からGoogleアカウント選択画面まで確認済み）
-- [ ] Googleログインを一般公開する場合、Google API Services User Data Policyへ所有者が同意し、独自ドメイン登録後にOAuthアプリを公開状態へ変更
+- [x] Google OAuthアプリを「本番環境」へ変更し、全Googleユーザー向けに公開（機密・制限付きスコープなし、データアクセス検証不要）
 - [ ] iOS Safari・Android Chromeの実機で、メールリンクとGoogleログインのcallback完了、ログイン後データ同期を確認（PC・モバイルエミュレーションE2Eは完了）
 - [x] ユーザー行動から嗜好プロフィールと関連作品を生成
 - [x] 「あなたへのおすすめ」と推薦理由、パーソナライズ停止設定を追加
