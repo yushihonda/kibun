@@ -13,7 +13,7 @@
 - TOPフィード: 承認済みYouTube予告編がある実作品だけを表示
 - Meilisearchは使用せず、初期運用を無料枠で完結
 
-アプリ実装、DB migration、本番データ補完、権限監査、PC・モバイルE2E、GitHub管理とActions本番デプロイまで完了しています。残る外部作業は「公開前チェック」に明記したGoogle OAuth規約同意と実端末確認、所有ドメインの接続です。
+アプリ実装、DB migration、本番データ補完、権限監査、PC・モバイルE2E、GitHub管理とActions本番デプロイまで完了しています。Googleログインは任意機能であり、本番公開そのものには不要です。残る所有者作業は、Googleログインを一般公開する場合の規約同意、実端末確認、所有ドメインの接続です。
 
 ## ローカル起動
 
@@ -32,6 +32,7 @@ http://localhost:3000 を開きます。外部サービス未設定時はデモ�
 - TMDB: 映画情報、画像、ジャンル、評価、配信状況、予告編情報
 - YouTube（任意）: 追加の予告編情報
 - OpenAI（任意）: 感情タグ生成
+- Google OAuth（任意）: 「Googleで続ける」によるログイン
 - Cloudflare Workers: Next.jsアプリの公開
 
 環境変数は `.env.example` を参照してください。`SUPABASE_SERVICE_ROLE_KEY` と各APIキーをブラウザへ公開しないでください。Supabase未設定時はビルドとデモ表示が動作し、検索APIもデモデータへフォールバックします。
@@ -71,7 +72,9 @@ Supabase CLIで適用する前に、必ず対象プロジェクトを確認し�
 
 管理APIも同じ `profiles.role = 'admin'` をサーバー側で確認し、DBのRLSでも書き込みを管理者に限定します。TikTok動画の審査登録は `/admin/videos` と `/api/admin/videos` を使用します。
 
-Google CloudにはKIBUN専用プロジェクト `sunlit-core-504705-g1` を作成済みです。アカウント所有者がGoogle API Services User Data Policyへ同意した後、Web OAuthクライアントを作成し、承認済みリダイレクトURIへ `https://ovvezqqdkqcqselwulvl.supabase.co/auth/v1/callback` を登録します。そのClient ID / SecretでSupabase DashboardのGoogle Providerを有効化してください。Site URLとRedirect URLsには本番URLおよび `http://localhost:3000/auth/callback` を登録します。メールのマジックリンク認証も同じcallbackを利用します。
+Googleログイン用にはKIBUN専用Cloudプロジェクト `sunlit-core-504705-g1` とWeb OAuthクライアントを作成済みです。承認済みリダイレクトURIは `https://ovvezqqdkqcqselwulvl.supabase.co/auth/v1/callback`、SupabaseのSite URLは本番URL、Redirect URLsは本番と `http://localhost:3000/auth/callback` に設定済みで、Google Providerも有効化済みです。クライアントシークレットは登録後にローテーションし、旧シークレットを削除しています。メールのマジックリンク認証はGoogleに依存せず、同じアプリ側callbackを利用します。
+
+Google OAuthアプリは現在テスト状態です。一般ユーザーへGoogleログインを公開するには、アカウント所有者がGoogle API Services User Data Policyへ同意し、所有する独自ドメインをOAuth同意画面へ登録して公開状態へ変更します。`workers.dev`のサブドメインはOAuth同意画面のアプリドメインとして保存できないため、独自ドメイン接続後にホーム、プライバシーポリシー、利用規約のURLを登録します。これらはCloudflare Workersへの本番デプロイやメール認証には影響しません。
 
 ## TMDB同期
 
@@ -270,7 +273,9 @@ npm audit
 
 ### Phase 3: ユーザー機能
 
-- [ ] Google API Services User Data Policyへの所有者同意、Supabase Google Provider有効化、iOS Safari・Android Chrome実機確認（専用CloudプロジェクトとOAuthアプリ情報、メールリンク、PC・モバイルエミュレーションE2Eは完了）
+- [x] Google Web OAuthクライアントを作成し、Supabase Google Provider、Site URL、Redirect URLsを本番設定（本番からGoogleアカウント選択画面まで確認済み）
+- [ ] Googleログインを一般公開する場合、Google API Services User Data Policyへ所有者が同意し、独自ドメイン登録後にOAuthアプリを公開状態へ変更
+- [ ] iOS Safari・Android Chromeの実機で、メールリンクとGoogleログインのcallback完了、ログイン後データ同期を確認（PC・モバイルエミュレーションE2Eは完了）
 - [x] ユーザー行動から嗜好プロフィールと関連作品を生成
 - [x] 「あなたへのおすすめ」と推薦理由、パーソナライズ停止設定を追加
 - [x] 未ログイン操作をログイン後に復元
