@@ -25,6 +25,7 @@ export function BottomNav() {
           <Link
             key={href}
             href={href}
+            prefetch={false}
             className={`flex min-w-20 flex-col items-center gap-1 text-[10px] font-semibold transition ${
               active ? "text-lime-300" : "text-white/55 hover:text-white"
             }`}

@@ -25,13 +25,13 @@ type CatalogRow = {
   popularity: number | string;
   genres: string[] | null;
   emotional_tags: string[] | null;
-  emotional_scores: Record<string, number> | null;
-  aliases: string[] | null;
-  keywords: string[] | null;
-  origin_countries: string[] | null;
-  tmdb_cast: MoviePerson[] | null;
-  tmdb_directors: MoviePerson[] | null;
-  tmdb_collection_id: number | null;
+  emotional_scores?: Record<string, number> | null;
+  aliases?: string[] | null;
+  keywords?: string[] | null;
+  origin_countries?: string[] | null;
+  tmdb_cast?: MoviePerson[] | null;
+  tmdb_directors?: MoviePerson[] | null;
+  tmdb_collection_id?: number | null;
   providers_checked_at: string | null;
   created_at: string;
   last_synced_at: string | null;
@@ -104,13 +104,17 @@ export async function loadCatalogMovies(
     limit?: number;
     movieIds?: string[];
     requireVideo?: boolean;
+    includeRecommendationMetadata?: boolean;
   },
 ): Promise<CatalogMovie[]> {
   const limit = Math.min(Math.max(options?.limit ?? 240, 1), 500);
+  const recommendationFields = options?.includeRecommendationMetadata
+    ? ",emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id"
+    : "";
   let query = supabase
     .from("movies")
     .select(
-      "id,tmdb_id,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,vote_count,popularity,genres,emotional_tags,emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id,providers_checked_at,created_at,last_synced_at",
+      `id,tmdb_id,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,vote_count,popularity,genres,emotional_tags,providers_checked_at,created_at,last_synced_at${recommendationFields}`,
     )
     .eq("adult", false)
     .order("popularity", { ascending: false })

@@ -66,8 +66,19 @@ export function SearchExperience({
   const [page, setPage] = useState(0);
   const [estimatedTotal, setEstimatedTotal] = useState(0);
   const searchPlan = useMemo(() => analyzeSearchQuery(query), [query]);
+  const hasRemoteSearchInput = Boolean(
+    query.trim() ||
+    activeFilters.size ||
+    maxRuntime ||
+    minRating ||
+    tags.trim() ||
+    excludeWatched ||
+    page > 0,
+  );
 
   useEffect(() => {
+    if (!hasRemoteSearchInput) return;
+
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true);
@@ -129,7 +140,16 @@ export function SearchExperience({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [activeFilters, excludeWatched, maxRuntime, minRating, page, query, tags]);
+  }, [
+    activeFilters,
+    excludeWatched,
+    hasRemoteSearchInput,
+    maxRuntime,
+    minRating,
+    page,
+    query,
+    tags,
+  ]);
 
   const localResults = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -208,9 +228,9 @@ export function SearchExperience({
     tags.trim() ||
     excludeWatched,
   );
-  const movies = remoteMovies ?? localResults;
+  const movies = (hasRemoteSearchInput ? remoteMovies : null) ?? localResults;
   const rails =
-    remoteRails ??
+    (hasRemoteSearchInput ? remoteRails : null) ??
     buildSearchRails(movies, searchPlan, {
       editorialMovies,
       emptyQuery: !query.trim(),
@@ -235,6 +255,7 @@ export function SearchExperience({
           <div className="flex items-center gap-3">
             <Link
               href="/"
+              prefetch={false}
               className="hidden text-lg font-black tracking-[0.18em] sm:block"
             >
               KIBUN

@@ -700,10 +700,12 @@ export function MovieFeed({
         <div className="pointer-events-auto flex items-center gap-2">
           <Link
             href="/search"
+            prefetch={false}
+            aria-label="気分で検索"
             className="flex items-center gap-2 rounded-full border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold backdrop-blur-md"
           >
             <Search size={16} />
-            気分で検索
+            <span className="hidden sm:inline">気分で検索</span>
           </Link>
           <button
             type="button"
@@ -758,7 +760,11 @@ export function MovieFeed({
                 className="hidden object-cover md:block"
               />
               {movie.video?.platform === "youtube" && (
-                <div className="absolute top-28 right-4 left-4 z-10 mx-auto aspect-video max-w-4xl overflow-hidden rounded-2xl bg-black shadow-2xl md:top-24">
+                <div
+                  data-testid="feed-video-surface"
+                  data-video-platform="youtube"
+                  className="absolute inset-0 overflow-hidden bg-black"
+                >
                   <YouTubePlayer
                     videoId={movie.video.videoId}
                     active={index === activeIndex}
@@ -768,7 +774,11 @@ export function MovieFeed({
                 </div>
               )}
               {movie.video?.platform === "tiktok" && (
-                <div className="absolute top-24 left-1/2 z-10 h-[54dvh] w-[min(88vw,340px)] -translate-x-1/2 overflow-hidden rounded-2xl bg-black shadow-2xl">
+                <div
+                  data-testid="feed-video-surface"
+                  data-video-platform="tiktok"
+                  className="absolute inset-0 overflow-hidden bg-black"
+                >
                   <TikTokPlayer
                     videoId={movie.video.videoId}
                     active={index === activeIndex}
@@ -776,22 +786,31 @@ export function MovieFeed({
                   />
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/5 to-black/30" />
-              <div className="absolute inset-x-0 bottom-20 flex items-end gap-3 px-5 pb-7 md:bottom-8 md:px-10">
+              <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black via-black/5 to-black/30" />
+              <div
+                data-testid="feed-summary"
+                className="absolute inset-x-0 bottom-20 z-20 flex items-end gap-2 px-4 pb-4 md:bottom-8 md:gap-3 md:px-10 md:pb-7"
+              >
                 <div className="min-w-0 flex-1">
                   {firstInSection && (
-                    <div className="mb-3 max-w-xl">
+                    <div className="mb-1 max-w-xl md:mb-3">
                       <p className="text-xs font-black tracking-[0.16em] text-lime-300">
                         {sectionTitle}
                       </p>
                       {sectionDescription && (
-                        <p className="mt-1 text-xs text-white/55">
+                        <p
+                          data-testid="feed-section-description"
+                          className="mt-1 text-xs text-white/55 max-md:hidden"
+                        >
                           {sectionDescription}
                         </p>
                       )}
                     </div>
                   )}
-                  <div className="mb-3 flex flex-wrap gap-2">
+                  <div
+                    data-testid="feed-emotional-tags"
+                    className="mb-3 flex flex-wrap gap-2 max-md:hidden"
+                  >
                     {movie.emotionalTags.slice(0, 3).map((tag) => (
                       <span
                         key={tag}
@@ -801,25 +820,31 @@ export function MovieFeed({
                       </span>
                     ))}
                   </div>
-                  <h1 className="text-3xl leading-tight font-black drop-shadow-lg md:text-5xl">
+                  <h1
+                    data-testid="feed-movie-title"
+                    className="line-clamp-1 text-2xl leading-tight font-black drop-shadow-lg md:line-clamp-2 md:text-5xl"
+                  >
                     {movie.title}
                   </h1>
                   {movie.editorialComment && (
-                    <p className="mt-2 line-clamp-2 max-w-xl text-sm font-semibold text-lime-200">
+                    <p className="mt-2 max-w-xl text-sm font-semibold text-lime-200 max-md:hidden md:line-clamp-2">
                       編集部: {movie.editorialComment}
                     </p>
                   )}
-                  <p className="mt-2 text-sm font-medium text-white/70">
+                  <p className="mt-1 text-xs font-medium text-white/70 md:mt-2 md:text-sm">
                     {movie.releaseDate.slice(0, 4)} ・{" "}
                     {formatRuntime(movie.runtime)} ・
                     <span className="ml-1 text-amber-300">
                       ★ {movie.voteAverage.toFixed(1)}
                     </span>
                   </p>
-                  <p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-white/80">
+                  <p
+                    data-testid="feed-overview"
+                    className="mt-3 max-w-xl text-sm leading-6 text-white/80 max-md:hidden md:line-clamp-2"
+                  >
                     {movie.overview}
                   </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] max-md:hidden">
                     {movie.providers.map((provider) => (
                       <span
                         key={`${provider.id}-${provider.type}`}
@@ -832,11 +857,11 @@ export function MovieFeed({
                   </div>
                 </div>
 
-                <div className="flex shrink-0 flex-col items-center gap-4">
+                <div className="flex shrink-0 flex-col items-center gap-3 md:gap-4">
                   <button
                     type="button"
                     onClick={() => toggleFavorite(movie.id)}
-                    className="grid size-12 place-items-center rounded-full bg-black/35 backdrop-blur transition hover:scale-105"
+                    className="grid size-10 place-items-center rounded-full bg-black/35 backdrop-blur transition hover:scale-105 md:size-12"
                     aria-label="お気に入り"
                   >
                     <Heart
@@ -858,7 +883,7 @@ export function MovieFeed({
                         sectionId,
                       });
                     }}
-                    className="grid size-12 place-items-center rounded-full bg-white text-zinc-950 transition hover:scale-105"
+                    className="grid size-10 place-items-center rounded-full bg-white text-zinc-950 transition hover:scale-105 md:size-12"
                     aria-label="作品情報"
                   >
                     <Info size={25} />
@@ -871,7 +896,7 @@ export function MovieFeed({
                     }
                     target="_blank"
                     rel="noreferrer"
-                    className="grid size-12 place-items-center rounded-full bg-lime-300 text-zinc-950 transition hover:scale-105"
+                    className="grid size-10 place-items-center rounded-full bg-lime-300 text-zinc-950 transition hover:scale-105 md:size-12"
                     aria-label="配信先を確認"
                   >
                     <Play size={23} className="fill-current" />
@@ -879,7 +904,7 @@ export function MovieFeed({
                 </div>
               </div>
               {index === 0 && (
-                <div className="absolute top-24 left-1/2 flex -translate-x-1/2 animate-bounce flex-col items-center text-[10px] font-bold text-white/60">
+                <div className="absolute top-24 left-1/2 z-20 flex -translate-x-1/2 animate-bounce flex-col items-center text-[10px] font-bold text-white/60">
                   SWIPE
                   <ChevronDown size={16} />
                 </div>

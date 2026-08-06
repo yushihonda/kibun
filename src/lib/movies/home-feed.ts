@@ -30,7 +30,7 @@ function section(
   used: Set<string>,
   generatedAt: string,
 ): MovieRail | null {
-  const movies = candidates.filter((movie) => !used.has(movie.id)).slice(0, 14);
+  const movies = candidates.filter((movie) => !used.has(movie.id)).slice(0, 8);
   if (!movies.length) return null;
   for (const movie of movies) used.add(movie.id);
   return { id, title, description, movies, generatedAt };
@@ -50,10 +50,10 @@ export async function loadHomeFeed(
   const user = authResult.data.user;
   const [pool, editorial, recommendationResult, savedResult] =
     await Promise.all([
-      loadCatalogMovies(supabase, { limit: 240, requireVideo: true }),
-      loadEditorialMovies(supabase).catch(() => []),
+      loadCatalogMovies(supabase, { limit: 72, requireVideo: true }),
+      loadEditorialMovies(supabase, { limit: 8 }).catch(() => []),
       user
-        ? loadRecommendations(supabase, { limit: 32 }).catch(() => ({
+        ? loadRecommendations(supabase, { limit: 16 }).catch(() => ({
             movies: [],
             personalized: false,
             personalizationEnabled: true,
@@ -107,7 +107,7 @@ export async function loadHomeFeed(
         "for-you",
         "あなたへのおすすめ",
         "映画棚と好みをもとにした未視聴作品",
-        recommendationResult.movies.slice(0, 14),
+        recommendationResult.movies.slice(0, 8),
         used,
         generatedAt,
       ),
@@ -118,7 +118,7 @@ export async function loadHomeFeed(
           "similar-favorites",
           "お気に入りに似た作品",
           "ジャンル・気分・監督・出演者の共通点から選定",
-          recommendationResult.movies.slice(14),
+          recommendationResult.movies.slice(8),
           used,
           generatedAt,
         ),

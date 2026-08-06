@@ -59,7 +59,10 @@ export async function loadRecommendations(
           .order("created_at", { ascending: false })
           .limit(80)
       : Promise.resolve({ data: [] }),
-    loadCatalogMovies(supabase, { limit: 400 }),
+    loadCatalogMovies(supabase, {
+      limit: 240,
+      includeRecommendationMetadata: true,
+    }),
   ]);
 
   const rows = (interactionRows ?? []) as InteractionRow[];
@@ -77,6 +80,7 @@ export async function loadRecommendations(
     ? await loadCatalogMovies(supabase, {
         limit: missingSignalIds.length,
         movieIds: missingSignalIds,
+        includeRecommendationMetadata: true,
       })
     : [];
   for (const movie of signalMovies) candidateById.set(movie.id, movie);
