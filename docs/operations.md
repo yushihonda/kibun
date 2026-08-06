@@ -75,8 +75,6 @@ psql "$RECOVERY_DATABASE_URL" -v ON_ERROR_STOP=1 -f .artifacts/backups/data.sql
 
 ## 公開前の手動確認
 
-- CIではDesktop Chrome、Pixel 7、Desktop Safari/WebKit、iPhone 15 Pro/WebKitのE2Eを実行する。実機固有のOS連携、メールアプリ復帰、Cookie制限は次の手動確認で補完する
-- GoogleログインとメールリンクをiOS Safari、Android Chrome、デスクトップChromeで確認
 - お気に入り3件から理由付き未視聴推薦が出ることを確認
 - アカウント削除後に再ログインして映画棚が空であることを確認
 - YouTube/TikTokのロゴ、標準操作、投稿者へのリンクが隠れていないことを確認
