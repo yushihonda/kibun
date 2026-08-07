@@ -80,7 +80,7 @@ test("feed and search are reachable", async ({ page, request }) => {
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(
-    dialog.getByRole("button", { name: "合っている" }),
+    dialog.getByRole("button", { name: "見た", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
