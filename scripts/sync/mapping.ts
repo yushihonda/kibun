@@ -91,6 +91,10 @@ export function mapTmdbMovie(
     number_of_episodes: details.number_of_episodes,
     sources: [...new Set(sources)].sort() as TmdbSource[],
     trending_at: sources.includes("trending") ? syncedAt : null,
+    theatrical_at:
+      details.media_type === "movie" && sources.includes("now_playing")
+        ? syncedAt
+        : null,
   };
   const providerFingerprint = mapJapaneseProviders(details, "").map(
     (provider) => {
@@ -102,10 +106,12 @@ export function mapTmdbMovie(
   const {
     emotion_updated_at: emotionUpdatedAt,
     trending_at: trendingAt,
+    theatrical_at: theatricalAt,
     ...hashBase
   } = base;
   void emotionUpdatedAt;
   void trendingAt;
+  void theatricalAt;
   const synced_hash = createHash("sha256")
     .update(JSON.stringify({ ...hashBase, providers: providerFingerprint }))
     .digest("hex");

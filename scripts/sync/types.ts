@@ -162,6 +162,7 @@ export interface MovieRecord {
   number_of_episodes: number | null;
   sources: TmdbSource[];
   trending_at: string | null;
+  theatrical_at: string | null;
   synced_hash: string;
   last_synced_at: string;
 }

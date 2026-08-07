@@ -55,13 +55,34 @@ async function hydrateSearchMetadata(
     ),
   ];
   if (!ids.length) return batches;
-  const { data, error } = await supabase
-    .from("movies")
-    .select(
-      "id,vote_count,sources,trending_at,emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id,providers_checked_at",
-    )
-    .in("id", ids);
+  const providerIds = [
+    ...new Set(
+      batches.flatMap((batch) =>
+        batch.movies.flatMap((movie) => movie.providers.map((item) => item.id)),
+      ),
+    ),
+  ];
+  const [{ data, error }, providerResult] = await Promise.all([
+    supabase
+      .from("movies")
+      .select(
+        "id,vote_count,sources,trending_at,theatrical_at,emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id,providers_checked_at",
+      )
+      .in("id", ids),
+    providerIds.length
+      ? supabase
+          .from("providers")
+          .select("tmdb_provider_id,logo_path")
+          .in("tmdb_provider_id", providerIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
   if (error) return batches;
+  const logoByProviderId = new Map(
+    (providerResult.data ?? []).map((provider) => [
+      Number(provider.tmdb_provider_id),
+      provider.logo_path as string | null,
+    ]),
+  );
   const metadataById = new Map(
     (data ?? []).map((row) => [row.id, row] as const),
   );
@@ -75,6 +96,7 @@ async function hydrateSearchMetadata(
             voteCount: Number(metadata.vote_count ?? 0),
             sources: metadata.sources ?? undefined,
             trendingAt: metadata.trending_at ?? undefined,
+            theatricalAt: metadata.theatrical_at ?? undefined,
             emotionScores:
               (metadata.emotional_scores as Record<string, number> | null) ??
               undefined,
@@ -85,6 +107,10 @@ async function hydrateSearchMetadata(
             directors: metadata.tmdb_directors as Movie["directors"],
             collectionId: metadata.tmdb_collection_id ?? undefined,
             providersCheckedAt: metadata.providers_checked_at ?? undefined,
+            providers: movie.providers.map((provider) => ({
+              ...provider,
+              logoPath: logoByProviderId.get(provider.id) ?? provider.logoPath,
+            })),
           }
         : movie;
     }),

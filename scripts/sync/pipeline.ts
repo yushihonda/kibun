@@ -93,7 +93,9 @@ export async function runSync(config: SyncConfig): Promise<{
       for (const tracked of await store.listTrackedMovies()) {
         const validSources = tracked.sources.filter(
           (source): source is TmdbSource =>
-            knownSources.has(source) && source !== "trending",
+            knownSources.has(source) &&
+            source !== "trending" &&
+            source !== "now_playing",
         );
         const key = mediaKey(tracked.mediaType, tracked.tmdbId);
         const metadata = {

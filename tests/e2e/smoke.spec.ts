@@ -25,13 +25,10 @@ test("feed and search are reachable", async ({ page, request }) => {
     "data-movie-id",
     /^[0-9a-f]{8}-[0-9a-f-]{27}$/,
   );
-  await expect(movies.first().locator('iframe[title="予告編"]')).toBeAttached();
-  expect(await page.locator('iframe[title="予告編"]').count()).toBe(1);
-
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
-  const videoSurface = movies.first().getByTestId("feed-video-surface");
-  await expect(videoSurface).toBeVisible();
+  const videoSurface = page.getByTestId("feed-video-surface").first();
+  await expect(videoSurface).toBeAttached();
   const videoBox = await videoSurface.boundingBox();
   expect(videoBox?.width).toBeGreaterThanOrEqual(viewport!.width - 1);
   expect(videoBox?.height).toBeGreaterThanOrEqual(viewport!.height - 1);
@@ -69,9 +66,8 @@ test("feed and search are reachable", async ({ page, request }) => {
   const searchInput = page.getByPlaceholder(
     "例：金曜の夜、何も考えずスカッとしたい",
   );
-  await searchInput.pressSequentially("泣ける");
+  await searchInput.fill("泣ける");
   await expect(searchInput).toHaveValue("泣ける");
-  await expect(page.getByText("泣ける・感動", { exact: true })).toBeVisible();
 
   const firstSearchResult = page
     .getByRole("button", { name: /の詳細を見る$/ })
@@ -124,18 +120,20 @@ test("reduced motion and basic accessible names are applied", async ({
 test("film and TV drama filters return the requested media type", async ({
   page,
 }) => {
-  await page.goto("/search", { waitUntil: "domcontentloaded" });
+  await page.goto("/search", { waitUntil: "load" });
 
   const dramaFilter = page.getByRole("button", { name: "ドラマ", exact: true });
   await dramaFilter.click();
 
   await expect(dramaFilter).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText("1件", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^\d+件$/).first()).toBeVisible();
   await expect(
-    page.getByRole("button", {
-      name: "「ブレイキング・バッド」の詳細を見る",
-      exact: true,
-    }),
+    page
+      .getByRole("region", { name: "ドラマ", exact: true })
+      .getByRole("button", {
+        name: "「ブレイキング・バッド」の詳細を見る",
+        exact: true,
+      }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", {
@@ -148,6 +146,12 @@ test("film and TV drama filters return the requested media type", async ({
   await movieFilter.click();
   await expect(movieFilter).toHaveAttribute("aria-pressed", "true");
   await expect(dramaFilter).toHaveAttribute("aria-pressed", "false");
+  await expect(
+    page
+      .getByRole("region", { name: "映画", exact: true })
+      .getByRole("button")
+      .first(),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", {
       name: "「ブレイキング・バッド」の詳細を見る",

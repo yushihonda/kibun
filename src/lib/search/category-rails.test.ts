@@ -90,4 +90,20 @@ describe("buildSearchRails", () => {
     ).toBe(true);
     expect(rails.some((rail) => rail.id === "mood")).toBe(true);
   });
+
+  it("always separates films and TV dramas into explicit rails", () => {
+    const movies = [
+      movie({ id: "film", title: "映画作品", mediaType: "movie" }),
+      movie({ id: "tv", title: "ドラマ作品", mediaType: "tv" }),
+    ];
+
+    const rails = buildSearchRails(movies, null);
+
+    expect(rails.find((rail) => rail.id === "movies")?.movies).toEqual([
+      expect.objectContaining({ id: "film", mediaType: "movie" }),
+    ]);
+    expect(rails.find((rail) => rail.id === "dramas")?.movies).toEqual([
+      expect.objectContaining({ id: "tv", mediaType: "tv" }),
+    ]);
+  });
 });

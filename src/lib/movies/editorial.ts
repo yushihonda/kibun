@@ -36,11 +36,13 @@ type ProviderJoinRow = {
         tmdb_provider_id: number;
         name: string;
         slug: string;
+        logo_path: string | null;
       }
     | {
         tmdb_provider_id: number;
         name: string;
         slug: string;
+        logo_path: string | null;
       }[]
     | null;
 };
@@ -77,6 +79,7 @@ function mapProviders(rows: ProviderJoinRow[]): Provider[] {
       name: provider.name,
       slug: provider.slug,
       type: row.offer_type,
+      logoPath: provider.logo_path ?? undefined,
     });
   }
   return normalizeProviders(mapped);
@@ -117,7 +120,9 @@ export async function loadEditorialMovies(
       .eq("status", "approved"),
     supabase
       .from("movie_providers")
-      .select("movie_id,offer_type,providers(tmdb_provider_id,name,slug)")
+      .select(
+        "movie_id,offer_type,providers(tmdb_provider_id,name,slug,logo_path)",
+      )
       .in("movie_id", movieIds)
       .eq("country", "JP"),
   ]);

@@ -7,16 +7,16 @@ import type { MovieRail } from "@/types/movie";
 function demoSections(): MovieRail[] {
   return [
     {
-      id: "demo-editorial",
-      title: "編集部のおすすめ",
+      id: "demo-movies",
+      title: "映画",
       description: "外部サービス未設定時のデモ表示",
-      movies: demoMovies.filter((movie) => movie.editorialComment),
+      movies: demoMovies.filter((movie) => movie.mediaType === "movie"),
     },
     {
-      id: "demo-popular",
-      title: "話題",
+      id: "demo-dramas",
+      title: "ドラマ",
       description: "外部サービス未設定時のデモ表示",
-      movies: demoMovies.filter((movie) => !movie.editorialComment),
+      movies: demoMovies.filter((movie) => movie.mediaType === "tv"),
     },
   ].filter((rail) => rail.movies.length > 0);
 }

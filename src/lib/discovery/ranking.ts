@@ -58,6 +58,14 @@ export function isRecentTitle(movie: Movie, now = new Date()): boolean {
   );
 }
 
+export function isNowPlayingTitle(movie: Movie, now = new Date()): boolean {
+  if (movie.mediaType !== "movie") return false;
+  const theatricalAt = dateValue(movie.theatricalAt);
+  if (theatricalAt === null) return false;
+  const age = now.getTime() - theatricalAt;
+  return age >= -DAY_MS && age <= 4 * DAY_MS;
+}
+
 export function isHighConfidenceRating(movie: Movie): boolean {
   return (
     movie.voteAverage >= 7.5 && voteCount(movie) >= voteFloor(movie, 500, 250)
@@ -93,6 +101,12 @@ export function trendScore(movie: Movie, now = new Date()): number {
   const trendingAt = dateValue(movie.trendingAt) ?? 0;
   const trendAge = Math.max(0, now.getTime() - trendingAt) / DAY_MS;
   return discoveryScore(movie, now) + Math.max(0, 10 - trendAge) * 2;
+}
+
+export function theatricalScore(movie: Movie, now = new Date()): number {
+  const theatricalAt = dateValue(movie.theatricalAt) ?? 0;
+  const freshness = Math.max(0, now.getTime() - theatricalAt) / DAY_MS;
+  return discoveryScore(movie, now) + Math.max(0, 4 - freshness) * 3;
 }
 
 export function recentScore(movie: Movie, now = new Date()): number {

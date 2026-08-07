@@ -7,6 +7,7 @@ export type Provider = {
   name: string;
   slug: string;
   type: OfferType;
+  logoPath?: string;
   tmdbLink?: string;
   checkedAt?: string;
 };
@@ -47,6 +48,7 @@ export type Movie = {
   collectionId?: number;
   sources?: string[];
   trendingAt?: string;
+  theatricalAt?: string;
   providersCheckedAt?: string;
   providers: Provider[];
   video?: MovieVideo;

@@ -50,6 +50,7 @@ describe("TMDB mapping", () => {
     );
     expect(first.sources).toEqual(["discover", "popular"]);
     expect(first.trending_at).toBeNull();
+    expect(first.theatrical_at).toBeNull();
     expect(first.media_type).toBe("movie");
     expect(first.original_language).toBe("ja");
     expect(first.origin_countries).toEqual(["JP"]);
@@ -73,6 +74,32 @@ describe("TMDB mapping", () => {
 
     expect(first.trending_at).toBe("2026-08-01T00:00:00Z");
     expect(first.synced_hash).toBe(second.synced_hash);
+  });
+
+  it("marks currently screening films without putting the timestamp in the hash", () => {
+    const first = mapTmdbMovie(
+      movie(),
+      ["now_playing"],
+      ["希望"],
+      "2026-08-01T00:00:00Z",
+    );
+    const second = mapTmdbMovie(
+      movie(),
+      ["now_playing"],
+      ["希望"],
+      "2026-08-02T00:00:00Z",
+    );
+
+    expect(first.theatrical_at).toBe("2026-08-01T00:00:00Z");
+    expect(first.synced_hash).toBe(second.synced_hash);
+    expect(
+      mapTmdbMovie(
+        movie({ media_type: "tv" }),
+        ["now_playing"],
+        ["希望"],
+        "2026-08-01T00:00:00Z",
+      ).theatrical_at,
+    ).toBeNull();
   });
 
   it("extracts only Japanese watch providers", () => {

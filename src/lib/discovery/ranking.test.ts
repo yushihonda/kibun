@@ -5,6 +5,7 @@ import {
   isEvergreenTitle,
   isFreshTrend,
   isHighConfidenceRating,
+  isNowPlayingTitle,
   isRecentTitle,
   isRecommendationEligible,
   weightedRating,
@@ -80,5 +81,16 @@ describe("discovery ranking", () => {
     expect(isEvergreenTitle(classic, now)).toBe(true);
     expect(isEvergreenTitle({ ...classic, voteCount: 200 }, now)).toBe(false);
     expect(isEvergreenTitle(title(), now)).toBe(false);
+  });
+
+  it("expires the theatrical marker and never applies it to TV dramas", () => {
+    const screening = title({ theatricalAt: "2026-08-05T00:00:00Z" });
+    const stale = title({ theatricalAt: "2026-08-01T00:00:00Z" });
+
+    expect(isNowPlayingTitle(screening, now)).toBe(true);
+    expect(isNowPlayingTitle(stale, now)).toBe(false);
+    expect(isNowPlayingTitle({ ...screening, mediaType: "tv" }, now)).toBe(
+      false,
+    );
   });
 });

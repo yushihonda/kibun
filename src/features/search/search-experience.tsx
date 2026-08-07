@@ -11,12 +11,16 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MovieDetails } from "@/features/feed/movie-feed";
 import { CategoryRails } from "@/features/search/category-rails";
+import { ProviderLogo } from "@/components/provider-badge";
 import { buildSearchRails } from "@/lib/search/category-rails";
 import {
   analyzeSearchQuery,
   rankSearchBatchesWithScores,
 } from "@/lib/search/query-intent";
-import { PROVIDER_FILTERS } from "@/lib/providers/catalog";
+import {
+  groupProviderServices,
+  PROVIDER_FILTERS,
+} from "@/lib/providers/catalog";
 import {
   searchSessionHeaders,
   trackProductEvent,
@@ -49,9 +53,11 @@ const providerSlugs = new Set<string>(
 export function SearchExperience({
   initialMovies,
   editorialMovies = [],
+  providerLogos = {},
 }: {
   initialMovies: Movie[];
   editorialMovies?: Movie[];
+  providerLogos?: Record<string, string>;
 }) {
   const [query, setQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
@@ -68,6 +74,15 @@ export function SearchExperience({
   const [page, setPage] = useState(0);
   const [estimatedTotal, setEstimatedTotal] = useState(0);
   const searchPlan = useMemo(() => analyzeSearchQuery(query), [query]);
+  const providerServiceBySlug = useMemo(
+    () =>
+      new Map(
+        groupProviderServices(
+          initialMovies.flatMap((movie) => movie.providers),
+        ).map((provider) => [provider.slug, provider] as const),
+      ),
+    [initialMovies],
+  );
   const hasRemoteSearchInput = Boolean(
     query.trim() ||
     activeFilters.size ||
@@ -328,6 +343,12 @@ export function SearchExperience({
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
             {quickFilters.map((filter) => {
               const active = activeFilters.has(filter.key);
+              const providerFilter = PROVIDER_FILTERS.find(
+                (provider) => provider.slug === filter.key,
+              );
+              const provider = providerFilter
+                ? providerServiceBySlug.get(providerFilter.slug)
+                : undefined;
               return (
                 <button
                   key={filter.key}
@@ -340,7 +361,20 @@ export function SearchExperience({
                       : "border-black/10 bg-white hover:border-black/30"
                   }`}
                 >
-                  {filter.label}
+                  <span className="flex items-center gap-1.5">
+                    {providerFilter && (
+                      <ProviderLogo
+                        provider={{
+                          name: providerFilter.label,
+                          logoPath:
+                            providerLogos[providerFilter.slug] ??
+                            provider?.logoPath,
+                        }}
+                        size={20}
+                      />
+                    )}
+                    {filter.label}
+                  </span>
                 </button>
               );
             })}
