@@ -8,6 +8,7 @@ const movie = (
   const { id, title, ...rest } = overrides;
   return {
     id,
+    mediaType: "movie",
     title,
     overview: "",
     posterUrl: "",

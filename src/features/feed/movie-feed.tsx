@@ -350,12 +350,13 @@ export function MovieDetails({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold tracking-widest text-lime-300">
-              KIBUN PICK
+              {movie.mediaType === "tv" ? "TV DRAMA" : "MOVIE"} ・ KIBUN PICK
             </p>
             <h2 className="mt-1 text-2xl font-black">{movie.title}</h2>
             <p className="mt-2 text-sm text-white/60">
               {movie.releaseDate.slice(0, 4)} ・ {formatRuntime(movie.runtime)}{" "}
-              ・ ★ {movie.voteAverage.toFixed(1)}
+              {movie.mediaType === "tv" ? "／話" : ""} ・ ★{" "}
+              {movie.voteAverage.toFixed(1)}
             </p>
           </div>
           <button
@@ -421,7 +422,7 @@ export function MovieDetails({
                 key={`${provider.id}-${provider.type}`}
                 href={
                   movie.tmdbId
-                    ? `https://www.themoviedb.org/movie/${movie.tmdbId}/watch?locale=JP`
+                    ? `https://www.themoviedb.org/${movie.mediaType}/${movie.tmdbId}/watch?locale=JP`
                     : "https://www.themoviedb.org/"
                 }
                 target="_blank"
@@ -529,7 +530,7 @@ export function MovieDetails({
             required
             maxLength={4000}
             className="mt-2 min-h-24 w-full rounded-2xl border border-white/15 bg-white/5 p-3 text-sm outline-none focus:ring-2 focus:ring-lime-300"
-            placeholder="この映画の感想を書く"
+            placeholder="この作品の感想を書く"
           />
           <button
             disabled={saving || !review.trim()}
@@ -832,8 +833,10 @@ export function MovieFeed({
                     </p>
                   )}
                   <p className="mt-1 text-xs font-medium text-white/70 md:mt-2 md:text-sm">
+                    {movie.mediaType === "tv" ? "ドラマ" : "映画"} ・{" "}
                     {movie.releaseDate.slice(0, 4)} ・{" "}
-                    {formatRuntime(movie.runtime)} ・
+                    {formatRuntime(movie.runtime)}
+                    {movie.mediaType === "tv" ? "／話" : ""} ・
                     <span className="ml-1 text-amber-300">
                       ★ {movie.voteAverage.toFixed(1)}
                     </span>
@@ -891,7 +894,7 @@ export function MovieFeed({
                   <a
                     href={
                       movie.tmdbId
-                        ? `https://www.themoviedb.org/movie/${movie.tmdbId}/watch?locale=JP`
+                        ? `https://www.themoviedb.org/${movie.mediaType}/${movie.tmdbId}/watch?locale=JP`
                         : "#"
                     }
                     target="_blank"

@@ -120,3 +120,38 @@ test("reduced motion and basic accessible names are applied", async ({
   ).toEqual([]);
   expect(await page.locator("img:not([alt])").count()).toBe(0);
 });
+
+test("film and TV drama filters return the requested media type", async ({
+  page,
+}) => {
+  await page.goto("/search", { waitUntil: "domcontentloaded" });
+
+  const dramaFilter = page.getByRole("button", { name: "ドラマ", exact: true });
+  await dramaFilter.click();
+
+  await expect(dramaFilter).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("1件", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "「ブレイキング・バッド」の詳細を見る",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "「デューン 砂の惑星 PART2」の詳細を見る",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+
+  const movieFilter = page.getByRole("button", { name: "映画", exact: true });
+  await movieFilter.click();
+  await expect(movieFilter).toHaveAttribute("aria-pressed", "true");
+  await expect(dramaFilter).toHaveAttribute("aria-pressed", "false");
+  await expect(
+    page.getByRole("button", {
+      name: "「ブレイキング・バッド」の詳細を見る",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+});

@@ -1,10 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   EmotionTag,
+  MediaType,
   MovieRecord,
   ProviderRecord,
   SyncFailure,
-} from "./types.js";
+} from "./types";
 
 export class SyncStore {
   private readonly client: SupabaseClient;
@@ -19,7 +20,7 @@ export class SyncStore {
     const { data, error } = await this.client
       .from("sync_runs")
       .insert({
-        source: "tmdb-monthly",
+        source: "tmdb-monthly-catalog",
         status: "running",
         started_at: new Date().toISOString(),
       })
@@ -30,15 +31,18 @@ export class SyncStore {
   }
 
   async listTrackedMovies(): Promise<
-    Array<{ tmdbId: number; sources: string[] }>
+    Array<{ tmdbId: number; mediaType: MediaType; sources: string[] }>
   > {
-    const rows: Array<{ tmdb_id: number | null; sources: string[] | null }> =
-      [];
+    const rows: Array<{
+      tmdb_id: number | null;
+      media_type: MediaType;
+      sources: string[] | null;
+    }> = [];
     const pageSize = 1_000;
     for (let from = 0; ; from += pageSize) {
       const { data, error } = await this.client
         .from("movies")
-        .select("tmdb_id,sources")
+        .select("tmdb_id,media_type,sources")
         .range(from, from + pageSize - 1);
       if (error) throw error;
       rows.push(...((data ?? []) as typeof rows));
@@ -50,6 +54,7 @@ export class SyncStore {
       )
       .map((row) => ({
         tmdbId: row.tmdb_id,
+        mediaType: row.media_type,
         sources: row.sources ?? [],
       }));
   }
@@ -74,7 +79,10 @@ export class SyncStore {
     if (error) throw error;
   }
 
-  async existingMovieMeta(tmdbId: number): Promise<{
+  async existingMovieMeta(
+    mediaType: MediaType,
+    tmdbId: number,
+  ): Promise<{
     syncedHash: string | null;
     emotionTags: EmotionTag[];
     emotionScores: Record<string, number>;
@@ -84,6 +92,7 @@ export class SyncStore {
       .from("movies")
       .select("id,synced_hash,ai_emotion_tags,emotional_scores")
       .eq("tmdb_id", tmdbId)
+      .eq("media_type", mediaType)
       .maybeSingle();
     if (error) throw error;
     const overrides: Record<string, number> = {};
@@ -130,12 +139,13 @@ export class SyncStore {
         ai_emotion_tags: emotion_tags,
         emotional_scores,
       },
-      { onConflict: "tmdb_id" },
+      { onConflict: "media_type,tmdb_id" },
     );
     if (error) throw error;
   }
 
   async syncYouTubeVideo(
+    mediaType: MediaType,
     tmdbMovieId: number,
     videoKey: string | null,
   ): Promise<void> {
@@ -145,6 +155,7 @@ export class SyncStore {
       .from("movies")
       .select("id")
       .eq("tmdb_id", tmdbMovieId)
+      .eq("media_type", mediaType)
       .single();
     if (movieError) throw movieError;
 
@@ -162,6 +173,7 @@ export class SyncStore {
   }
 
   async replaceProviders(
+    mediaType: MediaType,
     tmdbMovieId: number,
     providers: ProviderRecord[],
     syncedAt: string,
@@ -170,6 +182,7 @@ export class SyncStore {
       .from("movies")
       .select("id")
       .eq("tmdb_id", tmdbMovieId)
+      .eq("media_type", mediaType)
       .single();
     if (movieError) throw movieError;
     const { data: previousRows, error: previousError } = await this.client
@@ -182,6 +195,7 @@ export class SyncStore {
       p_tmdb_movie_id: tmdbMovieId,
       p_providers: providers,
       p_synced_at: syncedAt,
+      p_media_type: mediaType,
     });
     if (error) throw error;
     const availableKeys = new Set(
@@ -224,7 +238,8 @@ export class SyncStore {
     const { error: timestampError } = await this.client
       .from("movies")
       .update({ providers_checked_at: syncedAt })
-      .eq("tmdb_id", tmdbMovieId);
+      .eq("tmdb_id", tmdbMovieId)
+      .eq("media_type", mediaType);
     if (timestampError) throw timestampError;
   }
 }

@@ -1,3 +1,7 @@
+import {
+  isHighConfidenceRating,
+  weightedRating,
+} from "@/lib/discovery/ranking";
 import type { SearchPlan } from "@/lib/search/query-intent";
 import type { Movie, MovieRail } from "@/types/movie";
 
@@ -100,9 +104,10 @@ export function buildSearchRails(
   }
 
   const highRated = [...pool]
-    .filter((movie) => movie.voteAverage >= 7.5)
+    .filter(isHighConfidenceRating)
     .sort(
-      (a, b) => b.voteAverage - a.voteAverage || b.popularity - a.popularity,
+      (a, b) =>
+        weightedRating(b) - weightedRating(a) || b.popularity - a.popularity,
     );
   const highRatedRail = takeRail("high-rated", "高評価", highRated, used);
   if (highRatedRail) rails.push(highRatedRail);

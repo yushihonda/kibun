@@ -7,6 +7,7 @@ import type { Movie, MovieVideo, OfferType, Provider } from "@/types/movie";
 type MovieRow = {
   id: string;
   tmdb_id: number;
+  media_type: "movie" | "tv";
   title: string;
   original_title: string | null;
   overview: string;
@@ -106,7 +107,7 @@ export async function loadEditorialMovies(
     supabase
       .from("movies")
       .select(
-        "id,tmdb_id,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,popularity,genres,emotional_tags",
+        "id,tmdb_id,media_type,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,popularity,genres,emotional_tags",
       )
       .in("id", movieIds),
     supabase
@@ -146,6 +147,7 @@ export async function loadEditorialMovies(
       {
         id: row.id,
         tmdbId: Number(row.tmdb_id),
+        mediaType: row.media_type,
         title: row.title,
         originalTitle: row.original_title ?? undefined,
         overview: row.overview,

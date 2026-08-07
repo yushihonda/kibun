@@ -1,5 +1,10 @@
 import "../load-env";
-import { parseSources, runSync, type SyncConfig } from "./pipeline.js";
+import {
+  parseMediaTypes,
+  parseSources,
+  runSync,
+  type SyncConfig,
+} from "./pipeline.js";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -33,6 +38,7 @@ function configFromEnvironment(): SyncConfig {
     maxPages: process.env.SYNC_MAX_PAGES?.trim(),
     concurrency,
     sources: parseSources(process.env.SYNC_SOURCES),
+    mediaTypes: parseMediaTypes(process.env.SYNC_MEDIA_TYPES),
     refreshTracked:
       process.env.SYNC_REFRESH_TRACKED?.trim().toLowerCase() !== "false",
     emotionAiMaxMovies,

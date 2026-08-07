@@ -1,11 +1,7 @@
-import { HttpError, isRetryableHttpError, withRetry } from "./retry.js";
-import {
-  EMOTION_VOCABULARY,
-  type EmotionTag,
-  type TmdbDetails,
-} from "./types.js";
-import { MANUAL_MOVIE_METADATA } from "./manual-metadata.js";
-import { CURATED_SEARCH_EMOTIONS } from "../search-evaluation/curated-emotions.js";
+import { HttpError, isRetryableHttpError, withRetry } from "./retry";
+import { EMOTION_VOCABULARY, type EmotionTag, type TmdbDetails } from "./types";
+import { MANUAL_MOVIE_METADATA } from "./manual-metadata";
+import { CURATED_SEARCH_EMOTIONS } from "../search-evaluation/curated-emotions";
 
 interface OpenAiResponse {
   choices?: Array<{ message?: { content?: string } }>;
@@ -178,8 +174,14 @@ export function buildEmotionProfile(
   for (const [tag, score] of Object.entries(ruleScores))
     addScore(scores, tag, score);
 
-  const curated = MANUAL_MOVIE_METADATA[movie.id]?.emotionScores ?? {};
-  const searchCurated = CURATED_SEARCH_EMOTIONS[movie.id] ?? {};
+  const curated =
+    movie.media_type === "movie"
+      ? (MANUAL_MOVIE_METADATA[movie.id]?.emotionScores ?? {})
+      : {};
+  const searchCurated =
+    movie.media_type === "movie"
+      ? (CURATED_SEARCH_EMOTIONS[movie.id] ?? {})
+      : {};
   if (Object.keys(curated).length || Object.keys(searchCurated).length) {
     sources.add("curated");
   }

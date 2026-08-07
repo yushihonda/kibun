@@ -1,4 +1,8 @@
 import type { Movie } from "@/types/movie";
+import {
+  discoveryScore,
+  isRecommendationEligible,
+} from "@/lib/discovery/ranking";
 
 export type RecommendationInteraction = {
   movie: Movie;
@@ -105,8 +109,12 @@ export function buildPreferenceProfile(
   return profile;
 }
 
-function recommendationScore(movie: Movie, profile: PreferenceProfile) {
-  let score = movie.voteAverage * 0.35 + Math.log10(movie.popularity + 1) * 0.5;
+function recommendationScore(
+  movie: Movie,
+  profile: PreferenceProfile,
+  now: Date,
+) {
+  let score = discoveryScore(movie, now);
   const reasons: Array<{ label: string; weight: number }> = [];
 
   for (const genre of movie.genres) {
@@ -148,12 +156,17 @@ function recommendationScore(movie: Movie, profile: PreferenceProfile) {
 export function recommendMovies(
   candidates: Movie[],
   profile: PreferenceProfile,
-  options?: { limit?: number },
+  options?: { limit?: number; now?: Date },
 ): Movie[] {
   const limit = Math.min(Math.max(options?.limit ?? 18, 1), 40);
+  const now = options?.now ?? new Date();
   const ranked = candidates
-    .filter((movie) => !profile.excludedMovieIds.has(movie.id))
-    .map((movie) => recommendationScore(movie, profile))
+    .filter(
+      (movie) =>
+        !profile.excludedMovieIds.has(movie.id) &&
+        isRecommendationEligible(movie, now),
+    )
+    .map((movie) => recommendationScore(movie, profile, now))
     .sort(
       (a, b) =>
         b.score - a.score ||

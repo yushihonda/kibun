@@ -34,6 +34,8 @@ type SearchResponse = {
 };
 
 const quickFilters = [
+  { label: "映画", key: "movie" },
+  { label: "ドラマ", key: "tv" },
   { label: "見放題", key: "flatrate" },
   { label: "90分以内", key: "short" },
   { label: "★ 7.5以上", key: "high-rated" },
@@ -92,6 +94,12 @@ export function SearchExperience({
       );
       if (activeOfferTypes.length) {
         params.set("offerTypes", activeOfferTypes.join(","));
+      }
+      const activeMediaTypes = ["movie", "tv"].filter((type) =>
+        activeFilters.has(type),
+      );
+      if (activeMediaTypes.length === 1) {
+        params.set("mediaTypes", activeMediaTypes[0]);
       }
       if (activeFilters.has("short") || maxRuntime) {
         params.set(
@@ -166,6 +174,12 @@ export function SearchExperience({
         .toLowerCase();
       const queryMatches =
         searchPlan.expanded || !normalized || haystack.includes(normalized);
+      const activeMediaTypes = ["movie", "tv"].filter((type) =>
+        activeFilters.has(type),
+      );
+      const mediaTypeMatches =
+        activeMediaTypes.length !== 1 ||
+        activeMediaTypes.includes(movie.mediaType);
       const offerMatches =
         !activeFilters.has("flatrate") ||
         movie.providers.some((provider) => provider.type === "flatrate");
@@ -192,6 +206,7 @@ export function SearchExperience({
         );
       return (
         queryMatches &&
+        mediaTypeMatches &&
         offerMatches &&
         runtimeMatches &&
         ratingMatches &&
@@ -242,8 +257,13 @@ export function SearchExperience({
     setPage(0);
     setActiveFilters((current) => {
       const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        if (key === "movie") next.delete("tv");
+        if (key === "tv") next.delete("movie");
+        next.add(key);
+      }
       return next;
     });
   };
@@ -313,6 +333,7 @@ export function SearchExperience({
                   key={filter.key}
                   type="button"
                   onClick={() => toggleFilter(filter.key)}
+                  aria-pressed={active}
                   className={`shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition ${
                     active
                       ? "border-zinc-950 bg-lime-300"
@@ -412,7 +433,9 @@ export function SearchExperience({
               {query ? "SEARCH RESULT" : "KIBUN SELECTION"}
             </p>
             <h1 className="mt-1 text-2xl font-black">
-              {query ? `「${query}」に近い映画` : "今の気分に刺さる映画"}
+              {query
+                ? `「${query}」に近い作品`
+                : "今の気分に刺さる映画・ドラマ"}
             </h1>
           </div>
           <p className="text-xs font-semibold text-zinc-500">
@@ -453,7 +476,7 @@ export function SearchExperience({
           <div className="mt-14 rounded-3xl border border-dashed border-black/20 p-12 text-center">
             <Filter className="mx-auto text-zinc-400" />
             <h2 className="mt-4 font-black">
-              ぴったりの映画が見つかりませんでした
+              ぴったりの作品が見つかりませんでした
             </h2>
             <p className="mt-2 text-sm text-zinc-500">
               条件を少し減らすか、別の気分で検索してみてください。

@@ -20,6 +20,7 @@ async function exactCount(client: SupabaseClient, table: string) {
 type MovieAuditRow = {
   id: string;
   tmdb_id: number;
+  media_type: "movie" | "tv";
   title: string;
   poster_path: string | null;
   backdrop_path: string | null;
@@ -35,7 +36,7 @@ async function allMovies(client: SupabaseClient): Promise<MovieAuditRow[]> {
     const { data, error } = await client
       .from("movies")
       .select(
-        "id,tmdb_id,title,poster_path,backdrop_path,emotional_tags,last_synced_at,providers_checked_at",
+        "id,tmdb_id,media_type,title,poster_path,backdrop_path,emotional_tags,last_synced_at,providers_checked_at",
       )
       .order("id")
       .range(from, from + pageSize - 1);
@@ -95,11 +96,12 @@ async function main() {
     .eq("status", "approved");
   if (videoError) throw videoError;
 
-  const tmdbIds = new Set<number>();
-  const duplicateTmdbIds = new Set<number>();
+  const tmdbIds = new Set<string>();
+  const duplicateTmdbIds = new Set<string>();
   for (const movie of movies) {
-    if (tmdbIds.has(movie.tmdb_id)) duplicateTmdbIds.add(movie.tmdb_id);
-    tmdbIds.add(movie.tmdb_id);
+    const key = `${movie.media_type}:${movie.tmdb_id}`;
+    if (tmdbIds.has(key)) duplicateTmdbIds.add(key);
+    tmdbIds.add(key);
   }
   const missingPoster = movies.filter((movie) => !movie.poster_path);
   const missingBackdrop = movies.filter((movie) => !movie.backdrop_path);
@@ -117,7 +119,9 @@ async function main() {
     generatedAt: new Date().toISOString(),
     thresholds: { providerStaleDays: 45 },
     totals: {
-      movies: movies.length,
+      titles: movies.length,
+      movies: movies.filter((movie) => movie.media_type === "movie").length,
+      dramas: movies.filter((movie) => movie.media_type === "tv").length,
       approvedVideoRows: approvedVideos.count ?? 0,
       moviesWithApprovedVideos: moviesWithApprovedVideos ?? 0,
       providerRows,

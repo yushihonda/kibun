@@ -12,28 +12,36 @@ export default async function AdminOperationsPage() {
   // This route is dynamic and the time window must be evaluated for each request.
   // eslint-disable-next-line react-hooks/purity
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const [events, feedback, syncRuns, movies, videos] = await Promise.all([
-    supabase
-      .from("product_events")
-      .select("event_name,section_id,created_at")
-      .gte("created_at", since),
-    supabase
-      .from("search_feedback")
-      .select("is_relevant,created_at")
-      .gte("created_at", since),
-    supabase
-      .from("sync_runs")
-      .select(
-        "id,status,started_at,finished_at,discovered_count,succeeded_count,failed_count",
-      )
-      .order("started_at", { ascending: false })
-      .limit(8),
-    supabase.from("movies").select("id", { count: "exact", head: true }),
-    supabase
-      .from("movie_videos")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "approved"),
-  ]);
+  const [events, feedback, syncRuns, movies, dramas, videos] =
+    await Promise.all([
+      supabase
+        .from("product_events")
+        .select("event_name,section_id,created_at")
+        .gte("created_at", since),
+      supabase
+        .from("search_feedback")
+        .select("is_relevant,created_at")
+        .gte("created_at", since),
+      supabase
+        .from("sync_runs")
+        .select(
+          "id,status,started_at,finished_at,discovered_count,succeeded_count,failed_count",
+        )
+        .order("started_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("movies")
+        .select("id", { count: "exact", head: true })
+        .eq("media_type", "movie"),
+      supabase
+        .from("movies")
+        .select("id", { count: "exact", head: true })
+        .eq("media_type", "tv"),
+      supabase
+        .from("movie_videos")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "approved"),
+    ]);
   const eventRows = events.data ?? [];
   const counts = new Map<string, number>();
   for (const event of eventRows) {
@@ -51,6 +59,9 @@ export default async function AdminOperationsPage() {
       <header className="mx-auto flex max-w-5xl items-center justify-between py-6">
         <Brand />
         <nav className="flex gap-3 text-xs font-bold">
+          <Link href="/admin/titles" className="text-white/50">
+            作品
+          </Link>
           <Link href="/admin/videos" className="text-white/50">
             動画
           </Link>
@@ -73,6 +84,7 @@ export default async function AdminOperationsPage() {
         <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
             ["映画", movies.count ?? 0],
+            ["ドラマ", dramas.count ?? 0],
             ["承認済み動画", videos.count ?? 0],
             ["検索", searches],
             [

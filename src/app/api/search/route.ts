@@ -58,7 +58,7 @@ async function hydrateSearchMetadata(
   const { data, error } = await supabase
     .from("movies")
     .select(
-      "id,emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id,providers_checked_at",
+      "id,vote_count,sources,trending_at,emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id,providers_checked_at",
     )
     .in("id", ids);
   if (error) return batches;
@@ -72,6 +72,9 @@ async function hydrateSearchMetadata(
       return metadata
         ? {
             ...movie,
+            voteCount: Number(metadata.vote_count ?? 0),
+            sources: metadata.sources ?? undefined,
+            trendingAt: metadata.trending_at ?? undefined,
             emotionScores:
               (metadata.emotional_scores as Record<string, number> | null) ??
               undefined,
@@ -195,6 +198,9 @@ export async function GET(request: NextRequest) {
                 p_min_vote_count: plan.inferredMinVoteCount,
                 p_tags: filters.tags.length ? filters.tags : null,
                 p_exclude_watched: filters.excludeWatched,
+                p_media_types: filters.mediaTypes.length
+                  ? filters.mediaTypes
+                  : null,
                 p_limit: candidateLimit,
                 p_offset: expandedSearch ? 0 : filters.offset,
               }),

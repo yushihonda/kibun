@@ -5,8 +5,34 @@ const image = (path: string, size: "w780" | "w1280" = "w1280") =>
 
 export const demoMovies: Movie[] = [
   {
+    id: "demo-breaking-bad",
+    tmdbId: 1396,
+    mediaType: "tv",
+    title: "ブレイキング・バッド",
+    originalTitle: "Breaking Bad",
+    overview:
+      "余命宣告を受けた高校の化学教師が、家族に財産を残すため元教え子と危険な世界へ踏み込んでいく。",
+    posterUrl: image("/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg", "w780"),
+    backdropUrl: image("/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg"),
+    releaseDate: "2008-01-20",
+    runtime: 47,
+    voteAverage: 8.9,
+    voteCount: 14_000,
+    popularity: 91,
+    genres: ["ドラマ", "犯罪"],
+    emotionalTags: ["緊張感", "不穏", "考えさせられる"],
+    providers: [
+      { id: 8, name: "Netflix", slug: "netflix", type: "flatrate" },
+      { id: 15, name: "Hulu", slug: "hulu", type: "flatrate" },
+    ],
+    video: { platform: "youtube", videoId: "gIAca7Ycg0w" },
+    editorialComment:
+      "一話だけのつもりが止まらない。人物の選択が少しずつ転がり落ちていく緊張感を味わいたい夜に。",
+  },
+  {
     id: "demo-dune-2",
     tmdbId: 693134,
+    mediaType: "movie",
     title: "デューン 砂の惑星 PART2",
     originalTitle: "Dune: Part Two",
     overview:
@@ -16,6 +42,7 @@ export const demoMovies: Movie[] = [
     releaseDate: "2024-03-15",
     runtime: 166,
     voteAverage: 8.1,
+    voteCount: 6_500,
     popularity: 92,
     genres: ["SF", "アドベンチャー"],
     emotionalTags: ["映像美", "没入感", "壮大", "一人でじっくり"],
@@ -30,6 +57,7 @@ export const demoMovies: Movie[] = [
   {
     id: "demo-perfect-days",
     tmdbId: 976893,
+    mediaType: "movie",
     title: "PERFECT DAYS",
     overview:
       "東京で静かに暮らす男の日々。同じようで少しずつ違う毎日が、音楽と木漏れ日の中で輝き出す。",
@@ -38,6 +66,7 @@ export const demoMovies: Movie[] = [
     releaseDate: "2023-12-22",
     runtime: 124,
     voteAverage: 7.8,
+    voteCount: 1_800,
     popularity: 76,
     genres: ["ドラマ"],
     emotionalTags: ["チルい", "心が整う", "音楽が良い", "余韻", "癒やし"],
@@ -49,6 +78,7 @@ export const demoMovies: Movie[] = [
   {
     id: "demo-mad-max",
     tmdbId: 76341,
+    mediaType: "movie",
     title: "マッドマックス 怒りのデス・ロード",
     originalTitle: "Mad Max: Fury Road",
     overview:
@@ -58,6 +88,7 @@ export const demoMovies: Movie[] = [
     releaseDate: "2015-06-20",
     runtime: 120,
     voteAverage: 7.6,
+    voteCount: 23_000,
     popularity: 83,
     genres: ["アクション", "SF"],
     emotionalTags: [
@@ -76,6 +107,7 @@ export const demoMovies: Movie[] = [
   {
     id: "demo-past-lives",
     tmdbId: 666277,
+    mediaType: "movie",
     title: "パスト ライブス／再会",
     originalTitle: "Past Lives",
     overview:
@@ -85,6 +117,7 @@ export const demoMovies: Movie[] = [
     releaseDate: "2024-04-05",
     runtime: 106,
     voteAverage: 7.7,
+    voteCount: 3_600,
     popularity: 70,
     genres: ["ロマンス", "ドラマ"],
     emotionalTags: ["エモい", "切ない", "余韻", "静かな夜に", "泣ける"],
@@ -96,6 +129,7 @@ export const demoMovies: Movie[] = [
   {
     id: "demo-topgun",
     tmdbId: 361743,
+    mediaType: "movie",
     title: "トップガン マーヴェリック",
     overview:
       "伝説のパイロットが若き精鋭たちと不可能な任務へ。王道の熱さと爽快感を大画面で。",
@@ -104,6 +138,7 @@ export const demoMovies: Movie[] = [
     releaseDate: "2022-05-27",
     runtime: 131,
     voteAverage: 8.2,
+    voteCount: 10_000,
     popularity: 89,
     genres: ["アクション", "ドラマ"],
     emotionalTags: ["胸が熱い", "爽快", "万人受け", "デート向き", "笑える"],

@@ -22,10 +22,38 @@ type EventRow = {
   query: string | null;
 };
 
+async function loadCandidatePool(supabase: SupabaseClient, now: Date) {
+  const trendingSince = new Date(now.getTime() - 10 * 86_400_000).toISOString();
+  const groups = await Promise.all([
+    loadCatalogMovies(supabase, {
+      limit: 240,
+      orderBy: "popularity",
+      includeRecommendationMetadata: true,
+    }),
+    loadCatalogMovies(supabase, {
+      limit: 200,
+      orderBy: "vote_count",
+      includeRecommendationMetadata: true,
+    }),
+    loadCatalogMovies(supabase, {
+      limit: 120,
+      orderBy: "trending_at",
+      trendingSince,
+      includeRecommendationMetadata: true,
+    }),
+  ]);
+  return [
+    ...new Map(
+      groups.flat().map((movie) => [movie.id, movie] as const),
+    ).values(),
+  ];
+}
+
 export async function loadRecommendations(
   supabase: SupabaseClient,
-  options?: { seedMovieId?: string; limit?: number },
+  options?: { seedMovieId?: string; limit?: number; now?: Date },
 ) {
+  const now = options?.now ?? new Date();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -59,10 +87,7 @@ export async function loadRecommendations(
           .order("created_at", { ascending: false })
           .limit(80)
       : Promise.resolve({ data: [] }),
-    loadCatalogMovies(supabase, {
-      limit: 240,
-      includeRecommendationMetadata: true,
-    }),
+    loadCandidatePool(supabase, now),
   ]);
 
   const rows = (interactionRows ?? []) as InteractionRow[];
@@ -153,6 +178,7 @@ export async function loadRecommendations(
   );
   const recommendations = recommendMovies(candidates, profile, {
     limit: options?.limit,
+    now,
   });
   const meaningfulSignals =
     Boolean(seedMovie) ||

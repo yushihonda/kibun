@@ -7,8 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Movie } from "@/types/movie";
 
 export const metadata: Metadata = {
-  title: "映画を検索",
-  description: "気分、上映時間、配信サービスから次に観たい映画を検索。",
+  title: "映画・ドラマを検索",
+  description: "気分、時間、配信サービスから次に観たい映画やドラマを検索。",
 };
 
 export default async function SearchPage() {

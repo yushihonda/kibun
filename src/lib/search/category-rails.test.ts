@@ -8,6 +8,7 @@ const movie = (
   overrides: Partial<Movie> & Pick<Movie, "id" | "title">,
 ): Movie => ({
   id: overrides.id,
+  mediaType: overrides.mediaType ?? "movie",
   title: overrides.title,
   overview: overrides.overview ?? "",
   posterUrl: overrides.posterUrl ?? "",
@@ -15,6 +16,7 @@ const movie = (
   releaseDate: overrides.releaseDate ?? "",
   runtime: overrides.runtime ?? 100,
   voteAverage: overrides.voteAverage ?? 7,
+  voteCount: overrides.voteCount ?? 1_000,
   popularity: overrides.popularity ?? 10,
   genres: overrides.genres ?? [],
   emotionalTags: overrides.emotionalTags ?? [],

@@ -13,6 +13,7 @@ function required(name: string): string {
 type MovieRow = {
   id: string;
   tmdb_id: number;
+  media_type: "movie" | "tv";
   title: string;
   original_title: string;
   overview: string;
@@ -61,6 +62,7 @@ async function inParallel<T>(
 function detailsFromRow(row: MovieRow): TmdbDetails {
   return {
     id: row.tmdb_id,
+    media_type: row.media_type,
     title: row.title,
     original_title: row.original_title,
     overview: row.overview,
@@ -87,6 +89,8 @@ function detailsFromRow(row: MovieRow): TmdbDetails {
         name,
       })),
     },
+    number_of_seasons: null,
+    number_of_episodes: null,
   };
 }
 
@@ -113,7 +117,7 @@ async function main() {
     const { data, error } = await supabase
       .from("movies")
       .select(
-        "id,tmdb_id,title,original_title,overview,release_date,poster_path,backdrop_path,genres,runtime,status,tagline,homepage,imdb_id,popularity,vote_average,vote_count,adult,original_language,origin_countries,emotional_scores,keywords",
+        "id,tmdb_id,media_type,title,original_title,overview,release_date,poster_path,backdrop_path,genres,runtime,status,tagline,homepage,imdb_id,popularity,vote_average,vote_count,adult,original_language,origin_countries,emotional_scores,keywords",
       )
       .order("id")
       .range(from, from + pageSize - 1);
@@ -129,7 +133,9 @@ async function main() {
       });
       const aliases = [
         row.original_title,
-        ...(MANUAL_MOVIE_METADATA[row.tmdb_id]?.aliases ?? []),
+        ...(row.media_type === "movie"
+          ? (MANUAL_MOVIE_METADATA[row.tmdb_id]?.aliases ?? [])
+          : []),
       ]
         .map((alias) => alias?.trim())
         .filter(

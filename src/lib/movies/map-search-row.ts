@@ -4,6 +4,7 @@ import { normalizeProviders } from "@/lib/providers/catalog";
 export type SearchMovieRow = {
   id: string;
   tmdb_id: number;
+  media_type: "movie" | "tv";
   title: string;
   original_title: string | null;
   overview: string;
@@ -34,6 +35,7 @@ export function mapSearchMovie(row: SearchMovieRow): Movie {
   return {
     id: row.id,
     tmdbId: Number(row.tmdb_id),
+    mediaType: row.media_type,
     title: row.title,
     originalTitle: row.original_title ?? undefined,
     overview: row.overview,

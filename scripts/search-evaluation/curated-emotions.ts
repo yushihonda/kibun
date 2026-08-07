@@ -1,5 +1,5 @@
-import { SEARCH_RELEVANCE_CASES } from "./cases.js";
-import type { EmotionTag } from "../sync/types.js";
+import { SEARCH_RELEVANCE_CASES } from "./cases";
+import type { EmotionTag } from "../sync/types";
 
 const tagByCase: Record<string, EmotionTag[]> = {
   cry: ["泣ける", "切ない"],

@@ -14,7 +14,7 @@ async function main() {
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
   const [movies, videos, providers, feedRanking] = await Promise.all([
-    supabase.from("movies").select("id,emotional_scores").limit(1),
+    supabase.from("movies").select("id,media_type,emotional_scores").limit(1),
     supabase
       .from("movie_videos")
       .select("id")
@@ -33,6 +33,9 @@ async function main() {
   }
   const summary = {
     publicMovieRead: movies.data?.length === 1,
+    mediaTypesReady: movies.data?.every((movie) =>
+      ["movie", "tv"].includes(movie.media_type),
+    ),
     approvedVideoRead: videos.data?.length === 1,
     providerHistoryRead: providers.data?.length === 1,
     savedRankingRpc: Array.isArray(feedRanking.data),

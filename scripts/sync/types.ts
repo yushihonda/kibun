@@ -17,10 +17,13 @@ export const EMOTION_VOCABULARY = [
 ] as const;
 
 export type EmotionTag = (typeof EMOTION_VOCABULARY)[number];
+export const TMDB_MEDIA_TYPES = ["movie", "tv"] as const;
+export type MediaType = (typeof TMDB_MEDIA_TYPES)[number];
 export const TMDB_SOURCES = [
   "discover",
   "popular",
   "now_playing",
+  "trending",
   "japan",
   "korea",
 ] as const;
@@ -29,6 +32,7 @@ export type TmdbSource = (typeof TMDB_SOURCES)[number];
 
 export interface TmdbListMovie {
   id: number;
+  media_type: MediaType;
   title: string;
   original_title: string;
   overview: string;
@@ -108,6 +112,8 @@ export interface TmdbDetails extends Omit<TmdbListMovie, "genre_ids"> {
   alternative_titles?: { titles: TmdbAlternativeTitle[] };
   reviews?: { results: TmdbReview[] };
   belongs_to_collection?: { id: number; name: string } | null;
+  number_of_seasons: number | null;
+  number_of_episodes: number | null;
   "watch/providers"?: {
     results: Record<
       string,
@@ -123,6 +129,7 @@ export interface TmdbDetails extends Omit<TmdbListMovie, "genre_ids"> {
 
 export interface MovieRecord {
   tmdb_id: number;
+  media_type: MediaType;
   title: string;
   original_title: string;
   overview: string;
@@ -151,7 +158,10 @@ export interface MovieRecord {
   keywords: string[];
   aliases: string[];
   tmdb_collection_id: number | null;
+  number_of_seasons: number | null;
+  number_of_episodes: number | null;
   sources: TmdbSource[];
+  trending_at: string | null;
   synced_hash: string;
   last_synced_at: string;
 }
@@ -171,6 +181,7 @@ export interface ProviderRecord {
 
 export interface SyncFailure {
   tmdbId?: number;
+  mediaType?: MediaType;
   source?: TmdbSource;
   message: string;
 }

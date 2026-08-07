@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "KIBUN — 気分で見つかる、次の一本。",
+    name: "KIBUN — 気分で見つかる、次の一本・一話。",
     short_name: "KIBUN",
     description:
-      "気分・空き時間・配信サービスから映画を見つける映画DB型メディア",
+      "気分・空き時間・配信サービスから映画やドラマを見つける作品DB型メディア",
     start_url: "/",
     display: "standalone",
     background_color: "#09090b",

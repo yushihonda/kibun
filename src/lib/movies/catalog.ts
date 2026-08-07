@@ -13,6 +13,7 @@ import type {
 type CatalogRow = {
   id: string;
   tmdb_id: number;
+  media_type: "movie" | "tv";
   title: string;
   original_title: string | null;
   overview: string;
@@ -32,6 +33,8 @@ type CatalogRow = {
   tmdb_cast?: MoviePerson[] | null;
   tmdb_directors?: MoviePerson[] | null;
   tmdb_collection_id?: number | null;
+  sources: string[] | null;
+  trending_at: string | null;
   providers_checked_at: string | null;
   created_at: string;
   last_synced_at: string | null;
@@ -105,6 +108,8 @@ export async function loadCatalogMovies(
     movieIds?: string[];
     requireVideo?: boolean;
     includeRecommendationMetadata?: boolean;
+    orderBy?: "popularity" | "vote_count" | "release_date" | "trending_at";
+    trendingSince?: string;
   },
 ): Promise<CatalogMovie[]> {
   const limit = Math.min(Math.max(options?.limit ?? 240, 1), 500);
@@ -114,12 +119,18 @@ export async function loadCatalogMovies(
   let query = supabase
     .from("movies")
     .select(
-      `id,tmdb_id,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,vote_count,popularity,genres,emotional_tags,providers_checked_at,created_at,last_synced_at${recommendationFields}`,
+      `id,tmdb_id,media_type,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,vote_count,popularity,genres,emotional_tags,sources,trending_at,providers_checked_at,created_at,last_synced_at${recommendationFields}`,
     )
     .eq("adult", false)
-    .order("popularity", { ascending: false })
+    .order(options?.orderBy ?? "popularity", {
+      ascending: false,
+      nullsFirst: false,
+    })
     .limit(limit);
   if (options?.movieIds?.length) query = query.in("id", options.movieIds);
+  if (options?.trendingSince) {
+    query = query.gte("trending_at", options.trendingSince);
+  }
 
   const { data, error } = await query;
   if (error) throw error;
@@ -173,6 +184,7 @@ export async function loadCatalogMovies(
   const mapped = rows.map((row) => ({
     id: row.id,
     tmdbId: Number(row.tmdb_id),
+    mediaType: row.media_type,
     title: row.title,
     originalTitle: row.original_title ?? undefined,
     overview: row.overview,
@@ -192,6 +204,8 @@ export async function loadCatalogMovies(
     cast: row.tmdb_cast ?? undefined,
     directors: row.tmdb_directors ?? undefined,
     collectionId: row.tmdb_collection_id ?? undefined,
+    sources: row.sources ?? undefined,
+    trendingAt: row.trending_at ?? undefined,
     providersCheckedAt: row.providers_checked_at ?? undefined,
     providers: mapProviders(providersByMovie.get(row.id) ?? []),
     video: chooseVideo(videosByMovie.get(row.id) ?? []),
