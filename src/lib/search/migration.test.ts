@@ -34,6 +34,10 @@ const editorialPicksSql = readFileSync(
   ),
   "utf8",
 ).toLowerCase();
+const movieAndTvSql = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608070006_movie_and_tv.sql"),
+  "utf8",
+).toLowerCase();
 
 describe("initial Supabase migration", () => {
   it("enables local Japanese and fuzzy search extensions", () => {
@@ -124,5 +128,27 @@ describe("editorial picks migration", () => {
     expect(editorialPicksSql).toContain(
       "using (public.is_admin()) with check (public.is_admin())",
     );
+  });
+});
+
+describe("movie and TV catalog migration", () => {
+  it("separates TMDB IDs by media type without losing existing films", () => {
+    expect(movieAndTvSql).toContain("media_type text not null default 'movie'");
+    expect(movieAndTvSql).toContain("check (media_type in ('movie', 'tv'))");
+    expect(movieAndTvSql).toContain("(media_type, tmdb_id)");
+    expect(movieAndTvSql).toContain("number_of_seasons");
+    expect(movieAndTvSql).toContain("number_of_episodes");
+  });
+
+  it("returns and filters media types through the search RPC", () => {
+    expect(movieAndTvSql).toContain("p_media_types text[]");
+    expect(movieAndTvSql).toContain("m.media_type = any(s.media_types)");
+    expect(movieAndTvSql).toContain("case new.media_type");
+    expect(movieAndTvSql).toContain("then 'ドラマ tv シリーズ'");
+  });
+
+  it("looks up provider updates with the composite TMDB identity", () => {
+    expect(movieAndTvSql).toContain("p_media_type text default 'movie'");
+    expect(movieAndTvSql).toContain("and media_type = p_media_type");
   });
 });

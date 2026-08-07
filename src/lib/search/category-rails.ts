@@ -1,3 +1,7 @@
+import {
+  isHighConfidenceRating,
+  weightedRating,
+} from "@/lib/discovery/ranking";
 import type { SearchPlan } from "@/lib/search/query-intent";
 import type { Movie, MovieRail } from "@/types/movie";
 
@@ -83,6 +87,24 @@ export function buildSearchRails(
     }
   }
 
+  const movieRail = takeRail(
+    "movies",
+    "映画",
+    pool.filter((movie) => movie.mediaType === "movie"),
+    used,
+    { allowReuse: true },
+  );
+  if (movieRail) rails.push(movieRail);
+
+  const dramaRail = takeRail(
+    "dramas",
+    "ドラマ",
+    pool.filter((movie) => movie.mediaType === "tv"),
+    used,
+    { allowReuse: true },
+  );
+  if (dramaRail) rails.push(dramaRail);
+
   if (plan?.inferredOriginCountries.includes("JP")) {
     const japaneseRail = takeRail("japan", "邦画ピック", pool, used, {
       allowReuse: true,
@@ -92,7 +114,7 @@ export function buildSearchRails(
   }
 
   if (plan?.inferredOriginCountries.includes("KR")) {
-    const koreanRail = takeRail("korea", "韓国映画ピック", pool, used, {
+    const koreanRail = takeRail("korea", "韓国作品ピック", pool, used, {
       allowReuse: true,
       minCount: 2,
     });
@@ -100,9 +122,10 @@ export function buildSearchRails(
   }
 
   const highRated = [...pool]
-    .filter((movie) => movie.voteAverage >= 7.5)
+    .filter(isHighConfidenceRating)
     .sort(
-      (a, b) => b.voteAverage - a.voteAverage || b.popularity - a.popularity,
+      (a, b) =>
+        weightedRating(b) - weightedRating(a) || b.popularity - a.popularity,
     );
   const highRatedRail = takeRail("high-rated", "高評価", highRated, used);
   if (highRatedRail) rails.push(highRatedRail);

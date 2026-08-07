@@ -24,6 +24,8 @@
     "backfill:missing-videos": "tsx scripts/backfill-missing-tmdb-videos.ts",
     "sync:close-stale": "tsx scripts/close-stale-sync-runs.ts",
     "sync:movies": "tsx scripts/sync/index.ts",
+    "sync:catalog": "tsx scripts/sync/index.ts",
+    "admin:promote": "tsx scripts/promote-admin.ts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy -- --keep-vars",

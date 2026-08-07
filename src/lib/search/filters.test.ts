@@ -12,6 +12,7 @@ describe("parseSearchFilters", () => {
         maxRuntime: "90",
         minRating: "4",
         providers: "Netflix",
+        mediaTypes: "tv,invalid",
       }),
     );
 
@@ -22,6 +23,7 @@ describe("parseSearchFilters", () => {
       maxRuntime: 90,
       minRating: 8,
       providers: ["netflix"],
+      mediaTypes: ["tv"],
     });
   });
 
@@ -50,11 +52,30 @@ describe("filterDemoMovies", () => {
         offerTypes: "flatrate",
         maxRuntime: "130",
         minRating: "3.5",
+        mediaTypes: "movie",
       }),
     );
 
     expect(
       filterDemoMovies(demoMovies, filters).map((movie) => movie.id),
     ).toEqual(["demo-perfect-days"]);
+  });
+
+  it("filters films and TV dramas independently", () => {
+    const dramaFilters = parseSearchFilters(
+      new URLSearchParams({ mediaTypes: "tv" }),
+    );
+    const movieFilters = parseSearchFilters(
+      new URLSearchParams({ mediaTypes: "movie" }),
+    );
+
+    expect(
+      filterDemoMovies(demoMovies, dramaFilters).map((movie) => movie.id),
+    ).toEqual(["demo-breaking-bad"]);
+    expect(
+      filterDemoMovies(demoMovies, movieFilters).every(
+        (movie) => movie.mediaType === "movie",
+      ),
+    ).toBe(true);
   });
 });

@@ -6,10 +6,10 @@ import type {
   ProviderType,
   TmdbDetails,
   TmdbSource,
-} from "./types.js";
-import { selectYouTubeVideo } from "./youtube.js";
-import type { EmotionProfile } from "./emotions.js";
-import { MANUAL_MOVIE_METADATA } from "./manual-metadata.js";
+} from "./types";
+import { selectYouTubeVideo } from "./youtube";
+import type { EmotionProfile } from "./emotions";
+import { MANUAL_MOVIE_METADATA } from "./manual-metadata";
 
 const providerTypes: ProviderType[] = ["flatrate", "rent", "buy"];
 
@@ -28,7 +28,9 @@ export function mapTmdbMovie(
     : emotion;
   const aliases = [
     ...(details.alternative_titles?.titles ?? []).map((entry) => entry.title),
-    ...(MANUAL_MOVIE_METADATA[details.id]?.aliases ?? []),
+    ...(details.media_type === "movie"
+      ? (MANUAL_MOVIE_METADATA[details.id]?.aliases ?? [])
+      : []),
   ]
     .map((alias) => alias.trim())
     .filter(
@@ -50,6 +52,7 @@ export function mapTmdbMovie(
     .slice(0, 50);
   const base = {
     tmdb_id: details.id,
+    media_type: details.media_type,
     title: details.title,
     original_title: details.original_title,
     overview: details.overview,
@@ -71,7 +74,9 @@ export function mapTmdbMovie(
     origin_countries: [...new Set(details.origin_country ?? [])].sort(),
     cast: (details.credits?.cast ?? []).slice(0, 20),
     directors: (details.credits?.crew ?? []).filter(
-      (credit) => credit.job === "Director",
+      (credit) =>
+        credit.job === "Director" ||
+        (details.media_type === "tv" && credit.job === "Creator"),
     ),
     youtube_video_key:
       selectYouTubeVideo(details.videos?.results ?? [])?.key ?? null,
@@ -82,7 +87,14 @@ export function mapTmdbMovie(
     keywords,
     aliases,
     tmdb_collection_id: details.belongs_to_collection?.id ?? null,
+    number_of_seasons: details.number_of_seasons,
+    number_of_episodes: details.number_of_episodes,
     sources: [...new Set(sources)].sort() as TmdbSource[],
+    trending_at: sources.includes("trending") ? syncedAt : null,
+    theatrical_at:
+      details.media_type === "movie" && sources.includes("now_playing")
+        ? syncedAt
+        : null,
   };
   const providerFingerprint = mapJapaneseProviders(details, "").map(
     (provider) => {
@@ -91,8 +103,15 @@ export function mapTmdbMovie(
       return fingerprint;
     },
   );
-  const { emotion_updated_at: emotionUpdatedAt, ...hashBase } = base;
+  const {
+    emotion_updated_at: emotionUpdatedAt,
+    trending_at: trendingAt,
+    theatrical_at: theatricalAt,
+    ...hashBase
+  } = base;
   void emotionUpdatedAt;
+  void trendingAt;
+  void theatricalAt;
   const synced_hash = createHash("sha256")
     .update(JSON.stringify({ ...hashBase, providers: providerFingerprint }))
     .digest("hex");

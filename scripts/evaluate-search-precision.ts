@@ -17,6 +17,7 @@ function required(name: string): string {
 type EvaluationRow = {
   id: string;
   tmdb_id: number;
+  media_type: "movie" | "tv";
   title: string;
   original_title: string | null;
   overview: string;
@@ -31,6 +32,7 @@ function mapMovie(row: EvaluationRow): Movie {
   return {
     id: row.id,
     tmdbId: row.tmdb_id,
+    mediaType: row.media_type,
     title: row.title,
     originalTitle: row.original_title ?? undefined,
     overview: row.overview,
@@ -63,8 +65,9 @@ async function main() {
   const { data, error } = await supabase
     .from("movies")
     .select(
-      "id,tmdb_id,title,original_title,overview,genres,emotional_tags,emotional_scores,vote_average,popularity",
+      "id,tmdb_id,media_type,title,original_title,overview,genres,emotional_tags,emotional_scores,vote_average,popularity",
     )
+    .eq("media_type", "movie")
     .in("tmdb_id", ids);
   if (error) throw error;
   const movieByTmdbId = new Map(

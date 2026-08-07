@@ -18,8 +18,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Brand } from "@/components/brand";
+import { ProviderBadge } from "@/components/provider-badge";
 import type { Movie, MovieRail } from "@/types/movie";
 import { formatRuntime } from "@/lib/utils";
+import { isNowPlayingTitle } from "@/lib/discovery/ranking";
+import { groupProviderServices } from "@/lib/providers/catalog";
 import {
   getAnalyticsSessionId,
   trackProductEvent,
@@ -350,12 +353,14 @@ export function MovieDetails({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold tracking-widest text-lime-300">
-              KIBUN PICK
+              {movie.mediaType === "tv" ? "ドラマ" : "映画"} ・ KIBUN PICK
+              {isNowPlayingTitle(movie) ? " ・ 上映中" : ""}
             </p>
             <h2 className="mt-1 text-2xl font-black">{movie.title}</h2>
             <p className="mt-2 text-sm text-white/60">
               {movie.releaseDate.slice(0, 4)} ・ {formatRuntime(movie.runtime)}{" "}
-              ・ ★ {movie.voteAverage.toFixed(1)}
+              {movie.mediaType === "tv" ? "／話" : ""} ・ ★{" "}
+              {movie.voteAverage.toFixed(1)}
             </p>
           </div>
           <button
@@ -416,22 +421,27 @@ export function MovieDetails({
         <div className="mt-5 rounded-2xl bg-lime-300 p-4 text-zinc-950">
           <p className="text-xs font-bold">今すぐ観る</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {movie.providers.map((provider) => (
+            {groupProviderServices(movie.providers).map((provider) => (
               <a
-                key={`${provider.id}-${provider.type}`}
+                key={provider.slug}
                 href={
-                  movie.tmdbId
-                    ? `https://www.themoviedb.org/movie/${movie.tmdbId}/watch?locale=JP`
-                    : "https://www.themoviedb.org/"
+                  provider.tmdbLink ??
+                  (movie.tmdbId
+                    ? `https://www.themoviedb.org/${movie.mediaType}/${movie.tmdbId}/watch?locale=JP`
+                    : "https://www.themoviedb.org/")
                 }
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-bold text-white"
+                className="min-w-36 rounded-xl bg-zinc-950 px-3 py-2 text-sm text-white"
               >
-                {provider.name}
-                {provider.type === "flatrate" ? " 見放題" : " で観る"}
+                <ProviderBadge provider={provider} />
               </a>
             ))}
+            {movie.providers.length === 0 && (
+              <span className="text-sm font-bold opacity-65">
+                配信先を確認中
+              </span>
+            )}
           </div>
           <p className="mt-3 text-[10px] opacity-70">配信情報提供: JustWatch</p>
           {movie.providersCheckedAt && (
@@ -529,7 +539,7 @@ export function MovieDetails({
             required
             maxLength={4000}
             className="mt-2 min-h-24 w-full rounded-2xl border border-white/15 bg-white/5 p-3 text-sm outline-none focus:ring-2 focus:ring-lime-300"
-            placeholder="この映画の感想を書く"
+            placeholder="この作品の感想を書く"
           />
           <button
             disabled={saving || !review.trim()}
@@ -614,6 +624,15 @@ export function MovieFeed({
           })),
     [movies, sections],
   );
+  const activeMediaType = feedEntries[activeIndex]?.movie.mediaType ?? "movie";
+
+  const jumpToMediaType = (mediaType: Movie["mediaType"]) => {
+    const index = feedEntries.findIndex(
+      (entry) => entry.movie.mediaType === mediaType,
+    );
+    if (index < 0) return;
+    scroller.current?.children[index]?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
     const entry = feedEntries[activeIndex];
@@ -693,28 +712,62 @@ export function MovieFeed({
 
   return (
     <main className="relative h-dvh overflow-hidden bg-black">
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-40 mx-auto flex max-w-6xl items-center justify-between bg-gradient-to-b from-black/75 to-transparent px-4 pb-12 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="pointer-events-auto">
-          <Brand compact />
-        </div>
-        <div className="pointer-events-auto flex items-center gap-2">
-          <Link
-            href="/search"
-            prefetch={false}
-            aria-label="気分で検索"
-            className="flex items-center gap-2 rounded-full border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold backdrop-blur-md"
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-40 bg-gradient-to-b from-black/80 to-transparent px-4 pb-12 pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex items-center justify-between">
+            <div className="pointer-events-auto">
+              <Brand compact />
+            </div>
+            <div className="pointer-events-auto flex items-center gap-2">
+              <Link
+                href="/search"
+                prefetch={false}
+                aria-label="気分で検索"
+                className="flex items-center gap-2 rounded-full border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold backdrop-blur-md"
+              >
+                <Search size={16} />
+                <span className="hidden sm:inline">気分で検索</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setMuted((value) => !value)}
+                className="rounded-full border border-white/15 bg-black/35 p-2 backdrop-blur-md"
+                aria-label={muted ? "音声をオン" : "ミュート"}
+              >
+                {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+              </button>
+            </div>
+          </div>
+          <nav
+            className="pointer-events-auto mx-auto mt-3 flex w-fit gap-1 rounded-full border border-white/15 bg-black/45 p-1 text-xs font-black backdrop-blur-md"
+            aria-label="作品種別"
           >
-            <Search size={16} />
-            <span className="hidden sm:inline">気分で検索</span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setMuted((value) => !value)}
-            className="rounded-full border border-white/15 bg-black/35 p-2 backdrop-blur-md"
-            aria-label={muted ? "音声をオン" : "ミュート"}
-          >
-            {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-          </button>
+            {[
+              ["movie", "映画"],
+              ["tv", "ドラマ"],
+            ].map(([mediaType, label]) => {
+              const available = feedEntries.some(
+                (entry) => entry.movie.mediaType === mediaType,
+              );
+              const active = activeMediaType === mediaType;
+              return (
+                <button
+                  key={mediaType}
+                  type="button"
+                  disabled={!available}
+                  onClick={() =>
+                    jumpToMediaType(mediaType as Movie["mediaType"])
+                  }
+                  aria-current={active ? "true" : undefined}
+                  className={`rounded-full px-5 py-1.5 transition disabled:opacity-30 ${
+                    active ? "bg-lime-300 text-zinc-950" : "text-white"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </header>
 
@@ -832,8 +885,17 @@ export function MovieFeed({
                     </p>
                   )}
                   <p className="mt-1 text-xs font-medium text-white/70 md:mt-2 md:text-sm">
-                    {movie.releaseDate.slice(0, 4)} ・{" "}
-                    {formatRuntime(movie.runtime)} ・
+                    <span className="font-black text-white">
+                      {movie.mediaType === "tv" ? "ドラマ" : "映画"}
+                    </span>
+                    {isNowPlayingTitle(movie) && (
+                      <span className="ml-2 rounded-full bg-rose-600 px-2 py-0.5 font-black text-white">
+                        上映中
+                      </span>
+                    )}{" "}
+                    ・ {movie.releaseDate.slice(0, 4)} ・{" "}
+                    {formatRuntime(movie.runtime)}
+                    {movie.mediaType === "tv" ? "／話" : ""} ・
                     <span className="ml-1 text-amber-300">
                       ★ {movie.voteAverage.toFixed(1)}
                     </span>
@@ -845,14 +907,15 @@ export function MovieFeed({
                     {movie.overview}
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] max-md:hidden">
-                    {movie.providers.map((provider) => (
-                      <span
-                        key={`${provider.id}-${provider.type}`}
-                        className="rounded-md bg-white px-2 py-1 font-black text-zinc-900"
-                      >
-                        {provider.name}
-                      </span>
-                    ))}
+                    {groupProviderServices(movie.providers)
+                      .slice(0, 5)
+                      .map((provider) => (
+                        <ProviderBadge
+                          key={provider.slug}
+                          provider={provider}
+                          variant="icon"
+                        />
+                      ))}
                     <span className="text-white/45">Powered by JustWatch</span>
                   </div>
                 </div>
@@ -891,7 +954,7 @@ export function MovieFeed({
                   <a
                     href={
                       movie.tmdbId
-                        ? `https://www.themoviedb.org/movie/${movie.tmdbId}/watch?locale=JP`
+                        ? `https://www.themoviedb.org/${movie.mediaType}/${movie.tmdbId}/watch?locale=JP`
                         : "#"
                     }
                     target="_blank"

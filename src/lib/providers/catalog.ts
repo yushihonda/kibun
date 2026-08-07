@@ -1,4 +1,4 @@
-import type { Provider } from "@/types/movie";
+import type { OfferType, Provider } from "@/types/movie";
 
 type ProviderGroup = {
   label: string;
@@ -85,11 +85,62 @@ export function normalizeProviders(providers: readonly Provider[]): Provider[] {
       : provider;
   });
 
-  return normalized.filter(
-    (provider, index) =>
-      normalized.findIndex(
-        (candidate) =>
-          candidate.slug === provider.slug && candidate.type === provider.type,
-      ) === index,
-  );
+  const unique = new Map<string, Provider>();
+  for (const provider of normalized) {
+    const key = `${provider.slug}:${provider.type}`;
+    const existing = unique.get(key);
+    unique.set(
+      key,
+      existing && !existing.logoPath && provider.logoPath
+        ? { ...existing, logoPath: provider.logoPath }
+        : (existing ?? provider),
+    );
+  }
+  return [...unique.values()];
+}
+
+export type ProviderService = Omit<Provider, "type"> & {
+  offerTypes: OfferType[];
+};
+
+const offerOrder: OfferType[] = ["flatrate", "rent", "buy"];
+
+export function groupProviderServices(
+  providers: readonly Provider[],
+): ProviderService[] {
+  const services = new Map<string, ProviderService>();
+  for (const provider of normalizeProviders(providers)) {
+    const current = services.get(provider.slug);
+    if (current) {
+      if (!current.offerTypes.includes(provider.type)) {
+        current.offerTypes.push(provider.type);
+        current.offerTypes.sort(
+          (a, b) => offerOrder.indexOf(a) - offerOrder.indexOf(b),
+        );
+      }
+      if (!current.logoPath && provider.logoPath) {
+        current.logoPath = provider.logoPath;
+      }
+      continue;
+    }
+    const { type, ...service } = provider;
+    services.set(provider.slug, { ...service, offerTypes: [type] });
+  }
+  return [...services.values()];
+}
+
+export function providerLogoUrl(
+  logoPath: string | undefined,
+  size: "w45" | "w92" | "w154" = "w92",
+): string | undefined {
+  if (!logoPath?.startsWith("/") || logoPath.includes("..")) return undefined;
+  return `https://image.tmdb.org/t/p/${size}${logoPath}`;
+}
+
+export function providerOfferLabel(offerTypes: readonly OfferType[]): string {
+  return offerTypes
+    .map((type) =>
+      type === "flatrate" ? "見放題" : type === "rent" ? "レンタル" : "購入",
+    )
+    .join("・");
 }

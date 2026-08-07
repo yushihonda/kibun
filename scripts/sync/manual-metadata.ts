@@ -1,4 +1,4 @@
-import type { EmotionTag } from "./types.js";
+import type { EmotionTag } from "./types";
 
 export type ManualMovieMetadata = {
   aliases?: string[];

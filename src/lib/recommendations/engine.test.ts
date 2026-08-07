@@ -9,6 +9,7 @@ import {
 function movie(id: string, genre: string, emotion: string): Movie {
   return {
     id,
+    mediaType: "movie",
     title: id,
     overview: "",
     posterUrl: "/placeholder-movie.svg",
@@ -16,6 +17,7 @@ function movie(id: string, genre: string, emotion: string): Movie {
     releaseDate: "2025-01-01",
     runtime: 100,
     voteAverage: 7.5,
+    voteCount: 1_000,
     popularity: 50,
     genres: [genre],
     emotionalTags: [emotion],

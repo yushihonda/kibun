@@ -1,6 +1,7 @@
-import type { Movie, OfferType } from "@/types/movie";
+import type { MediaType, Movie, OfferType } from "@/types/movie";
 
 const offerTypes = new Set<OfferType>(["flatrate", "rent", "buy"]);
+const mediaTypes = new Set<MediaType>(["movie", "tv"]);
 
 function list(value: string | null, max = 20) {
   return (value ?? "")
@@ -26,6 +27,7 @@ export type SearchFilters = {
   query: string;
   providers: string[];
   offerTypes: OfferType[];
+  mediaTypes: MediaType[];
   maxRuntime: number | null;
   minRating: number | null;
   tags: string[];
@@ -41,6 +43,9 @@ export function parseSearchFilters(params: URLSearchParams): SearchFilters {
     providers: list(params.get("providers")),
     offerTypes: list(params.get("offerTypes")).filter(
       (value): value is OfferType => offerTypes.has(value as OfferType),
+    ),
+    mediaTypes: list(params.get("mediaTypes"), 2).filter(
+      (value): value is MediaType => mediaTypes.has(value as MediaType),
     ),
     maxRuntime: boundedNumber(params.get("maxRuntime"), 1, 1440),
     // The existing UI sends 1–5 stars while TMDB stores ratings on a 0–10 scale.
@@ -72,6 +77,8 @@ export function filterDemoMovies(movies: Movie[], filters: SearchFilters) {
 
       return (
         (!query || searchable.includes(query)) &&
+        (!filters.mediaTypes.length ||
+          filters.mediaTypes.includes(movie.mediaType)) &&
         (filters.maxRuntime === null || movie.runtime <= filters.maxRuntime) &&
         (filters.minRating === null ||
           movie.voteAverage >= filters.minRating) &&

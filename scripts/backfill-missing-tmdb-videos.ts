@@ -16,14 +16,18 @@ async function main() {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
   const tmdb = new TmdbClient(required("TMDB_BEARER_TOKEN"));
-  const movies: Array<{ id: string; tmdb_id: number }> = [];
+  const movies: Array<{
+    id: string;
+    tmdb_id: number;
+    media_type: "movie" | "tv";
+  }> = [];
   const pageSize = 1_000;
   const concurrency = Number(process.env.SYNC_CONCURRENCY?.trim() || "5");
 
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await client
       .from("movies")
-      .select("id,tmdb_id")
+      .select("id,tmdb_id,media_type")
       .is("youtube_video_key", null)
       .not("tmdb_id", "is", null)
       .range(from, from + pageSize - 1);
@@ -34,7 +38,11 @@ async function main() {
 
   let backfilled = 0;
   let unavailable = 0;
-  const failures: Array<{ tmdbId: number; message: string }> = [];
+  const failures: Array<{
+    tmdbId: number;
+    mediaType: "movie" | "tv";
+    message: string;
+  }> = [];
   const queue = [...movies];
 
   await Promise.all(
@@ -43,7 +51,8 @@ async function main() {
       while ((movie = queue.shift())) {
         try {
           const video = selectYouTubeVideo(
-            (await tmdb.details(movie.tmdb_id)).videos?.results ?? [],
+            (await tmdb.details(movie.tmdb_id, movie.media_type)).videos
+              ?.results ?? [],
           );
           if (!video) {
             unavailable += 1;
@@ -71,6 +80,7 @@ async function main() {
         } catch (error) {
           failures.push({
             tmdbId: movie.tmdb_id,
+            mediaType: movie.media_type,
             message: error instanceof Error ? error.message : String(error),
           });
         }

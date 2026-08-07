@@ -8,6 +8,7 @@ const movie = (
   overrides: Partial<Movie> & Pick<Movie, "id" | "title">,
 ): Movie => ({
   id: overrides.id,
+  mediaType: overrides.mediaType ?? "movie",
   title: overrides.title,
   overview: overrides.overview ?? "",
   posterUrl: overrides.posterUrl ?? "",
@@ -15,6 +16,7 @@ const movie = (
   releaseDate: overrides.releaseDate ?? "",
   runtime: overrides.runtime ?? 100,
   voteAverage: overrides.voteAverage ?? 7,
+  voteCount: overrides.voteCount ?? 1_000,
   popularity: overrides.popularity ?? 10,
   genres: overrides.genres ?? [],
   emotionalTags: overrides.emotionalTags ?? [],
@@ -87,5 +89,21 @@ describe("buildSearchRails", () => {
       rails[0]?.id === "editorial" || rails.some((rail) => rail.id === "mood"),
     ).toBe(true);
     expect(rails.some((rail) => rail.id === "mood")).toBe(true);
+  });
+
+  it("always separates films and TV dramas into explicit rails", () => {
+    const movies = [
+      movie({ id: "film", title: "映画作品", mediaType: "movie" }),
+      movie({ id: "tv", title: "ドラマ作品", mediaType: "tv" }),
+    ];
+
+    const rails = buildSearchRails(movies, null);
+
+    expect(rails.find((rail) => rail.id === "movies")?.movies).toEqual([
+      expect.objectContaining({ id: "film", mediaType: "movie" }),
+    ]);
+    expect(rails.find((rail) => rail.id === "dramas")?.movies).toEqual([
+      expect.objectContaining({ id: "tv", mediaType: "tv" }),
+    ]);
   });
 });

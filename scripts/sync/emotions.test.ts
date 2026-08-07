@@ -5,6 +5,7 @@ import type { TmdbDetails } from "./types.js";
 function movie(overrides: Partial<TmdbDetails> = {}): TmdbDetails {
   return {
     id: 999_999_999,
+    media_type: "movie",
     title: "テスト映画",
     original_title: "Test Movie",
     overview: "家族との別れと再会を描く、涙と希望の物語。",
@@ -23,6 +24,8 @@ function movie(overrides: Partial<TmdbDetails> = {}): TmdbDetails {
     tagline: "もう一度、会いたい",
     homepage: "",
     imdb_id: null,
+    number_of_seasons: null,
+    number_of_episodes: null,
     keywords: { keywords: [{ id: 1, name: "家族" }] },
     reviews: { results: [{ id: "review", content: "心温まる作品" }] },
     ...overrides,

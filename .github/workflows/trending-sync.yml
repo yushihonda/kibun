@@ -1,0 +1,44 @@
+name: Daily movie and drama trends
+
+on:
+  schedule:
+    - cron: "20 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-catalog-trends
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TMDB_BEARER_TOKEN: ${{ secrets.TMDB_BEARER_TOKEN }}
+      SYNC_MAX_PAGES: "2"
+      SYNC_CONCURRENCY: "3"
+      SYNC_REFRESH_TRACKED: "false"
+      EMOTION_AI_MAX_MOVIES: "0"
+      EMOTION_AI_MAX_COST_USD: "0"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync weekly trends
+        env:
+          SYNC_SOURCES: trending
+          SYNC_MEDIA_TYPES: movie,tv
+        run: npm run sync:catalog
+      - name: Sync films currently in theaters
+        env:
+          SYNC_SOURCES: now_playing
+          SYNC_MEDIA_TYPES: movie
+        run: npm run sync:catalog

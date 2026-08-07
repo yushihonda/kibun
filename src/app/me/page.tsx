@@ -42,8 +42,18 @@ export default async function MyPage() {
         .order("updated_at", { ascending: false })
     : { data: null };
   const shelf = (data ?? []) as unknown as ShelfRow[];
-  const [{ data: preference }, movieChoices, recommendationResult] = user
+  const [
+    { data: profile },
+    { data: preference },
+    movieChoices,
+    recommendationResult,
+  ] = user
     ? await Promise.all([
+        supabase!
+          .from("profiles")
+          .select("display_name,role")
+          .eq("id", user.id)
+          .maybeSingle(),
         supabase!
           .from("user_preferences")
           .select(
@@ -57,7 +67,7 @@ export default async function MyPage() {
           personalized: false,
         })),
       ])
-    : [{ data: null }, [], { movies: [], personalized: false }];
+    : [{ data: null }, { data: null }, [], { movies: [], personalized: false }];
   const watched = shelf.filter((item) => item.status === "WATCHED");
   const tabs = [
     {
@@ -79,12 +89,22 @@ export default async function MyPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <Brand />
           {user ? (
-            <form action={signOut}>
-              <button className="flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-bold">
-                <LogOut size={15} />
-                ログアウト
-              </button>
-            </form>
+            <div className="flex items-center gap-2">
+              {profile?.role === "admin" && (
+                <Link
+                  href="/admin/operations"
+                  className="rounded-full bg-lime-300 px-4 py-2 text-xs font-black text-zinc-950"
+                >
+                  管理画面
+                </Link>
+              )}
+              <form action={signOut}>
+                <button className="flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-bold">
+                  <LogOut size={15} />
+                  ログアウト
+                </button>
+              </form>
+            </div>
           ) : (
             <Link
               href="/login?next=/me"
@@ -105,13 +125,15 @@ export default async function MyPage() {
           <div className="mt-3 flex flex-wrap items-end justify-between gap-5">
             <div>
               <h1 className="text-3xl font-black">
-                {user?.user_metadata?.full_name
-                  ? `${user.user_metadata.full_name}さんの映画棚`
-                  : "あなたの映画棚"}
+                {profile?.display_name
+                  ? `${profile.display_name}さんの作品棚`
+                  : user?.user_metadata?.full_name
+                    ? `${user.user_metadata.full_name}さんの作品棚`
+                    : "あなたの作品棚"}
               </h1>
               <p className="mt-2 text-sm text-white/55">
                 {!supabase
-                  ? "Supabaseを設定すると、映画棚を端末間で同期できます。"
+                  ? "Supabaseを設定すると、作品棚を端末間で同期できます。"
                   : user
                     ? "見たい・見た・お気に入り・評価を保存しています。"
                     : "ログインすると、見たい・見た・評価を端末をまたいで保存できます。"}
@@ -151,7 +173,7 @@ export default async function MyPage() {
               <p className="text-xs font-bold tracking-widest text-white/40">
                 RECENTLY WATCHED
               </p>
-              <h2 className="mt-1 text-xl font-black">最近観た映画</h2>
+              <h2 className="mt-1 text-xl font-black">最近観た作品</h2>
             </div>
             <button className="text-xs font-bold text-lime-300" type="button">
               すべて見る
@@ -194,8 +216,8 @@ export default async function MyPage() {
             {!watched.length && (
               <p className="col-span-full rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-white/45">
                 {user
-                  ? "「見た」にした映画がここに並びます。"
-                  : "ログインして映画棚を作りましょう。"}
+                  ? "「見た」にした作品がここに並びます。"
+                  : "ログインして作品棚を作りましょう。"}
               </p>
             )}
           </div>

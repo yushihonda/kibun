@@ -1,11 +1,13 @@
 export type OfferType = "flatrate" | "rent" | "buy";
 export type VideoPlatform = "youtube" | "tiktok";
+export type MediaType = "movie" | "tv";
 
 export type Provider = {
   id: number;
   name: string;
   slug: string;
   type: OfferType;
+  logoPath?: string;
   tmdbLink?: string;
   checkedAt?: string;
 };
@@ -24,6 +26,7 @@ export type MovieVideo = {
 export type Movie = {
   id: string;
   tmdbId?: number;
+  mediaType: MediaType;
   title: string;
   originalTitle?: string;
   overview: string;
@@ -32,6 +35,7 @@ export type Movie = {
   releaseDate: string;
   runtime: number;
   voteAverage: number;
+  voteCount?: number;
   popularity: number;
   genres: string[];
   emotionalTags: string[];
@@ -42,6 +46,9 @@ export type Movie = {
   cast?: MoviePerson[];
   directors?: MoviePerson[];
   collectionId?: number;
+  sources?: string[];
+  trendingAt?: string;
+  theatricalAt?: string;
   providersCheckedAt?: string;
   providers: Provider[];
   video?: MovieVideo;

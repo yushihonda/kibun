@@ -16,6 +16,9 @@ export default async function AdminVideosPage() {
       <header className="mx-auto flex max-w-3xl items-center justify-between py-6">
         <Brand />
         <nav className="flex gap-3 text-xs font-bold">
+          <Link href="/admin/titles" className="text-white/50">
+            作品
+          </Link>
           <Link href="/admin/videos" className="text-lime-300">
             動画
           </Link>

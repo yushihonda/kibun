@@ -1,4 +1,4 @@
-import type { TmdbVideo } from "./types.js";
+import type { TmdbVideo } from "./types";
 
 const typePriority: Record<string, number> = {
   Trailer: 3,

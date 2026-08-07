@@ -1,6 +1,9 @@
 "use client";
 
 import { ResilientImage as Image } from "@/components/resilient-image";
+import { ProviderBadge } from "@/components/provider-badge";
+import { groupProviderServices } from "@/lib/providers/catalog";
+import { isNowPlayingTitle } from "@/lib/discovery/ranking";
 import type { Movie, MovieRail } from "@/types/movie";
 
 export function CategoryRails({
@@ -38,9 +41,30 @@ export function CategoryRails({
                     }
                     className="object-cover"
                   />
+                  <span className="absolute top-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-zinc-950 shadow-sm backdrop-blur">
+                    {movie.mediaType === "tv" ? "ドラマ" : "映画"}
+                  </span>
                   <span className="absolute top-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur">
                     ★ {movie.voteAverage.toFixed(1)}
                   </span>
+                  {isNowPlayingTitle(movie) && (
+                    <span className="absolute bottom-2 left-2 rounded-full bg-rose-600 px-2 py-1 text-[10px] font-black text-white shadow-sm">
+                      上映中
+                    </span>
+                  )}
+                  {movie.providers.length > 0 && (
+                    <span className="absolute right-2 bottom-2 flex -space-x-1.5 rounded-lg bg-black/60 p-1 backdrop-blur">
+                      {groupProviderServices(movie.providers)
+                        .slice(0, 3)
+                        .map((provider) => (
+                          <ProviderBadge
+                            key={provider.slug}
+                            provider={provider}
+                            variant="icon"
+                          />
+                        ))}
+                    </span>
+                  )}
                 </div>
                 <h3 className="mt-2 truncate text-sm font-black">
                   {movie.title}
