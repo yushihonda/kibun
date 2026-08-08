@@ -939,6 +939,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                 alt=""
                 fill
                 sizes="(max-width: 767px) 100vw, 1px"
+                quality={65}
                 loading={index === 0 ? "eager" : "lazy"}
                 fetchPriority={index === 0 ? "high" : "auto"}
                 className="object-cover object-center md:hidden"
@@ -948,6 +949,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                 alt=""
                 fill
                 sizes="(max-width: 767px) 1px, 100vw"
+                quality={65}
                 loading={index === 0 ? "eager" : "lazy"}
                 fetchPriority={index === 0 ? "high" : "auto"}
                 className="hidden object-cover md:block"

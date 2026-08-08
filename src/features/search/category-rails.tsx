@@ -56,6 +56,7 @@ function CategoryRail({
                   alt={`${movie.title} ポスター`}
                   fill
                   sizes="160px"
+                  quality={65}
                   loading={eager && movieIndex === 0 ? "eager" : "lazy"}
                   className="object-cover"
                 />
