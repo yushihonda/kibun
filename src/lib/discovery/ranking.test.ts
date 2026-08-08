@@ -8,6 +8,7 @@ import {
   isNowPlayingTitle,
   isRecentTitle,
   isRecommendationEligible,
+  socialTrendBoost,
   weightedRating,
 } from "./ranking";
 
@@ -91,6 +92,34 @@ describe("discovery ranking", () => {
     expect(isNowPlayingTitle(stale, now)).toBe(false);
     expect(isNowPlayingTitle({ ...screening, mediaType: "tv" }, now)).toBe(
       false,
+    );
+  });
+
+  it("adds a freshness-decayed TikTok trend boost", () => {
+    const socialSignals = {
+      postCount: 8,
+      totalViews: 500_000,
+      totalLikes: 50_000,
+      totalComments: 2_000,
+      totalShares: 1_000,
+      averageEngagementRate: 10.6,
+      trendScore: 90,
+      sentiment: "positive" as const,
+      sentimentScore: 0.8,
+      topHashtags: ["考察"],
+      topics: ["ネタバレ考察"],
+      updatedAt: "2026-08-06T00:00:00Z",
+      featuredPosts: [],
+    };
+    const trending = title({ socialSignals });
+    const stale = title({
+      socialSignals: { ...socialSignals, updatedAt: "2025-08-06T00:00:00Z" },
+    });
+
+    expect(socialTrendBoost(trending, now)).toBeGreaterThan(15);
+    expect(socialTrendBoost(stale, now)).toBeLessThan(1);
+    expect(discoveryScore(trending, now)).toBeGreaterThan(
+      discoveryScore(title(), now),
     );
   });
 });

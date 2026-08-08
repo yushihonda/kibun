@@ -29,6 +29,20 @@ import {
 } from "@/lib/analytics/client";
 import { savePendingInteraction } from "@/lib/auth/pending-actions";
 
+const compactNumber = new Intl.NumberFormat("ja-JP", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+function sentimentLabel(
+  sentiment: NonNullable<Movie["socialSignals"]>["sentiment"],
+) {
+  if (sentiment === "positive") return "好意的";
+  if (sentiment === "negative") return "厳しめ";
+  if (sentiment === "mixed") return "賛否あり";
+  return "中立";
+}
+
 function YouTubePlayer({
   videoId,
   active,
@@ -462,6 +476,90 @@ export function MovieDetails({
             </span>
           ))}
         </div>
+
+        {movie.socialSignals && movie.socialSignals.postCount > 0 && (
+          <section className="mt-6 rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/8 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black tracking-widest text-fuchsia-300">
+                  TIKTOK TREND
+                </p>
+                <h3 className="mt-1 text-lg font-black">いまの口コミ</h3>
+              </div>
+              <p className="text-[10px] text-white/45">
+                {movie.socialSignals.updatedAt.slice(0, 10)} 更新
+              </p>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-black/25 p-2">
+                <p className="text-lg font-black">
+                  {compactNumber.format(movie.socialSignals.totalViews)}
+                </p>
+                <p className="text-[10px] text-white/50">再生</p>
+              </div>
+              <div className="rounded-xl bg-black/25 p-2">
+                <p className="text-lg font-black">
+                  {movie.socialSignals.averageEngagementRate.toFixed(1)}%
+                </p>
+                <p className="text-[10px] text-white/50">反応率</p>
+              </div>
+              <div className="rounded-xl bg-black/25 p-2">
+                <p className="text-sm font-black">
+                  {sentimentLabel(movie.socialSignals.sentiment)}
+                </p>
+                <p className="text-[10px] text-white/50">反応傾向</p>
+              </div>
+            </div>
+            {movie.socialSignals.summary && (
+              <p className="mt-4 text-sm leading-6 text-white/80">
+                {movie.socialSignals.summary}
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {movie.socialSignals.topics.slice(0, 4).map((topic) => (
+                <span
+                  key={topic}
+                  className="rounded-full bg-fuchsia-300/15 px-2.5 py-1 text-[11px] font-bold text-fuchsia-100"
+                >
+                  {topic}
+                </span>
+              ))}
+              {movie.socialSignals.topHashtags.slice(0, 4).map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-white/65"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+            {movie.socialSignals.featuredPosts.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {movie.socialSignals.featuredPosts.map((post) => (
+                  <a
+                    key={post.videoId}
+                    href={post.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-xl border border-white/10 bg-black/25 p-3 transition hover:border-fuchsia-300/40"
+                  >
+                    <p className="line-clamp-2 text-xs leading-5 text-white/80">
+                      {post.caption || "TikTokの公開投稿"}
+                    </p>
+                    <p className="mt-2 text-[10px] font-bold text-fuchsia-200">
+                      {post.authorUsername ? `@${post.authorUsername} ・ ` : ""}
+                      {compactNumber.format(post.views)}回再生 ・ ER{" "}
+                      {post.engagementRate.toFixed(1)}%
+                    </p>
+                  </a>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-[10px] leading-4 text-white/40">
+              公開投稿のメタデータを集計。投稿を選ぶとTikTokで開きます。
+            </p>
+          </section>
+        )}
 
         <div className="mt-6 grid grid-cols-3 gap-2">
           {[
@@ -900,6 +998,15 @@ export function MovieFeed({
                       ★ {movie.voteAverage.toFixed(1)}
                     </span>
                   </p>
+                  {(movie.socialSignals?.trendScore ?? 0) >= 20 && (
+                    <p className="mt-2 w-fit rounded-full bg-fuchsia-600/90 px-3 py-1 text-[11px] font-black text-white shadow-lg">
+                      TikTokで話題 ・{" "}
+                      {compactNumber.format(
+                        movie.socialSignals?.totalViews ?? 0,
+                      )}
+                      回再生
+                    </p>
+                  )}
                   <p
                     data-testid="feed-overview"
                     className="mt-3 max-w-xl text-sm leading-6 text-white/80 max-md:hidden md:line-clamp-2"

@@ -93,8 +93,19 @@ export function discoveryScore(movie: Movie, now = new Date()): number {
     Math.log10(voteCount(movie) + 1) * 4 +
     Math.log10(Math.max(0, movie.popularity) + 1) * 2 +
     (isFreshTrend(movie, now) ? 35 : 0) +
+    socialTrendBoost(movie, now) +
     recentBonus
   );
+}
+
+export function socialTrendBoost(movie: Movie, now = new Date()): number {
+  const social = movie.socialSignals;
+  if (!social || social.postCount <= 0) return 0;
+  const updatedAt = dateValue(social.updatedAt);
+  if (updatedAt === null) return 0;
+  const ageDays = Math.max(0, now.getTime() - updatedAt) / DAY_MS;
+  const freshness = Math.exp(-ageDays / 21);
+  return Math.min(24, Math.max(0, social.trendScore) * 0.22) * freshness;
 }
 
 export function trendScore(movie: Movie, now = new Date()): number {

@@ -102,4 +102,35 @@ describe("recommendMovies", () => {
     expect(profile.genres.get("サイエンスフィクション")).toBe(0.7);
     expect(profile.excludedMovieIds.has("viewed")).toBe(false);
   });
+
+  it("uses fresh TikTok activity to change otherwise equal recommendations", () => {
+    const profile = buildPreferenceProfile([], {
+      enabled: true,
+      genres: [],
+      emotions: [],
+    });
+    const ordinary = movie("ordinary", "ドラマ", "余韻");
+    const social = {
+      ...movie("social", "ドラマ", "余韻"),
+      socialSignals: {
+        postCount: 10,
+        totalViews: 1_000_000,
+        totalLikes: 100_000,
+        totalComments: 5_000,
+        totalShares: 2_000,
+        averageEngagementRate: 10.7,
+        trendScore: 95,
+        sentiment: "positive" as const,
+        sentimentScore: 0.9,
+        topHashtags: ["考察"],
+        topics: ["ネタバレ考察"],
+        updatedAt: new Date().toISOString(),
+        featuredPosts: [],
+      },
+    };
+
+    expect(
+      recommendMovies([ordinary, social], profile, { limit: 2 })[0].id,
+    ).toBe("social");
+  });
 });

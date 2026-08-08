@@ -1,0 +1,48 @@
+name: TikTok movie and drama trends
+
+on:
+  schedule:
+    - cron: "50 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tiktok-social-trends
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RAPIDAPI_TIKTOK_KEY: ${{ secrets.RAPIDAPI_TIKTOK_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: gpt-5.6-luna
+      TIKTOK_SYNC_TITLE_LIMIT: "20"
+      TIKTOK_SYNC_POSTS_PER_TITLE: "30"
+      TIKTOK_SYNC_MIN_VIEWS: "500"
+      TIKTOK_AI_MAX_TITLES: "10"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check TikTok provider configuration
+        id: configuration
+        shell: bash
+        run: |
+          if [ -n "$RAPIDAPI_TIKTOK_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::RAPIDAPI_TIKTOK_KEY is not configured; skipping TikTok sync."
+          fi
+      - name: Sync TikTok social signals
+        if: steps.configuration.outputs.configured == 'true'
+        run: npm run sync:tiktok

@@ -52,6 +52,15 @@ export function CategoryRails({
                       上映中
                     </span>
                   )}
+                  {(movie.socialSignals?.trendScore ?? 0) >= 20 && (
+                    <span
+                      className={`absolute left-2 rounded-full bg-fuchsia-600 px-2 py-1 text-[10px] font-black text-white shadow-sm ${
+                        isNowPlayingTitle(movie) ? "bottom-10" : "bottom-2"
+                      }`}
+                    >
+                      TikTokで話題
+                    </span>
+                  )}
                   {movie.providers.length > 0 && (
                     <span className="absolute right-2 bottom-2 flex -space-x-1.5 rounded-lg bg-black/60 p-1 backdrop-blur">
                       {groupProviderServices(movie.providers)
@@ -69,6 +78,16 @@ export function CategoryRails({
                 <h3 className="mt-2 truncate text-sm font-black">
                   {movie.title}
                 </h3>
+                {movie.socialSignals && (
+                  <p className="mt-1 text-[10px] font-bold text-fuchsia-700">
+                    {new Intl.NumberFormat("ja-JP", {
+                      notation: "compact",
+                      maximumFractionDigits: 1,
+                    }).format(movie.socialSignals.totalViews)}
+                    回再生 ・ ER{" "}
+                    {movie.socialSignals.averageEngagementRate.toFixed(1)}%
+                  </p>
+                )}
                 {movie.matchReasons?.length ? (
                   <p className="mt-1 line-clamp-2 text-[11px] font-medium text-lime-800">
                     {movie.matchReasons.join(" · ")}

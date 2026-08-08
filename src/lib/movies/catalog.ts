@@ -2,6 +2,10 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeProviders } from "@/lib/providers/catalog";
+import {
+  mapMovieSocialSignals,
+  type MovieSocialSignalRow,
+} from "@/lib/social/map-signals";
 import type {
   Movie,
   MoviePerson,
@@ -177,16 +181,27 @@ export async function loadCatalogMovies(
           )
           .in("movie_id", batch)
           .eq("country", "JP"),
+        supabase
+          .from("movie_social_signals")
+          .select(
+            "movie_id,post_count,total_views,total_likes,total_comments,total_shares,average_engagement_rate,trend_score,sentiment,sentiment_score,top_hashtags,topics,summary,latest_post_at,featured_posts,calculated_at",
+          )
+          .in("movie_id", batch),
       ]),
     ),
   );
   const videos: unknown[] = [];
   const providerRows: unknown[] = [];
-  for (const [videoResult, providerResult] of relatedResults) {
+  const socialRows: unknown[] = [];
+  for (const [videoResult, providerResult, socialResult] of relatedResults) {
     if (videoResult.error) throw videoResult.error;
     if (providerResult.error) throw providerResult.error;
+    if (socialResult.error && socialResult.error.code !== "42P01") {
+      throw socialResult.error;
+    }
     videos.push(...(videoResult.data ?? []));
     providerRows.push(...(providerResult.data ?? []));
+    socialRows.push(...(socialResult.data ?? []));
   }
 
   const videosByMovie = new Map<string, VideoRow[]>();
@@ -201,6 +216,12 @@ export async function loadCatalogMovies(
     list.push(provider);
     providersByMovie.set(provider.movie_id, list);
   }
+  const socialByMovie = new Map(
+    (socialRows as MovieSocialSignalRow[]).map((row) => [
+      row.movie_id,
+      mapMovieSocialSignals(row),
+    ]),
+  );
 
   const mapped = rows.map((row) => ({
     id: row.id,
@@ -231,6 +252,7 @@ export async function loadCatalogMovies(
     providersCheckedAt: row.providers_checked_at ?? undefined,
     providers: mapProviders(providersByMovie.get(row.id) ?? []),
     video: chooseVideo(videosByMovie.get(row.id) ?? []),
+    socialSignals: socialByMovie.get(row.id),
     createdAt: row.created_at,
     lastSyncedAt: row.last_synced_at ?? undefined,
   })) satisfies CatalogMovie[];
