@@ -14,6 +14,13 @@ export type TikTokSearchPost = {
   commentSamples: string[];
 };
 
+export type TikTokRapidApiProvider = "all-in-one" | "tiktok-api23";
+
+export type TikTokSearchPage = {
+  posts: TikTokSearchPost[];
+  hasMore: boolean;
+};
+
 type UnknownRecord = Record<string, unknown>;
 
 function record(value: unknown): UnknownRecord | null {
@@ -91,6 +98,7 @@ function extractHashtags(item: unknown, caption: string): string[] {
     ["hashtag_names"],
     ["challenges"],
     ["text_extra"],
+    ["textExtra"],
   ])) {
     if (typeof tag === "string") values.push(tag.replace(/^#/, ""));
     const tagRecord = record(tag);
@@ -131,12 +139,31 @@ function extractItems(payload: unknown): unknown[] {
     ["data", "data"],
     ["data", "videos"],
     ["data", "items"],
+    ["data", "item_list"],
+    ["data", "itemList"],
+    ["data", "videoList"],
     ["videos"],
     ["items"],
     ["item_list"],
+    ["itemList"],
+    ["videoList"],
     ["aweme_list"],
   ];
   return arrayAt(payload, candidates);
+}
+
+function payloadShape(value: unknown, depth = 0): unknown {
+  if (Array.isArray(value)) {
+    return { type: "array", length: value.length };
+  }
+  const valueRecord = record(value);
+  if (!valueRecord) return typeof value;
+  if (depth >= 2) return { type: "object", keys: Object.keys(valueRecord) };
+  return Object.fromEntries(
+    Object.entries(valueRecord)
+      .slice(0, 20)
+      .map(([key, child]) => [key, payloadShape(child, depth + 1)]),
+  );
 }
 
 function safeTikTokUrl(value: unknown): string | undefined {
@@ -266,32 +293,39 @@ export function parseTikTokSearchResponse(
   });
 }
 
+export function parseTikTokSearchPage(payload: unknown): TikTokSearchPage {
+  const hasMoreValue = first(payload, [
+    ["has_more"],
+    ["hasMore"],
+    ["data", "has_more"],
+    ["data", "hasMore"],
+  ]);
+  return {
+    posts: parseTikTokSearchResponse(payload),
+    hasMore:
+      hasMoreValue === true ||
+      hasMoreValue === 1 ||
+      hasMoreValue === "1" ||
+      hasMoreValue === "true",
+  };
+}
+
 export class TikTokRapidApiClient {
   constructor(
     private readonly config: {
       apiKey: string;
+      provider?: TikTokRapidApiProvider;
       host?: string;
       endpoint?: string;
       fetchImpl?: typeof fetch;
     },
   ) {}
 
-  async search(
-    keywords: string,
-    options?: { region?: string; count?: number },
-  ): Promise<TikTokSearchPost[]> {
-    const host = this.config.host ?? "tiktok-all-in-one-api.p.rapidapi.com";
-    const endpoint = this.config.endpoint ?? `https://${host}/search/video`;
-    const url = new URL(endpoint);
-    url.searchParams.set("keywords", keywords);
-    url.searchParams.set("region", options?.region ?? "JP");
-    url.searchParams.set(
-      "count",
-      String(Math.min(50, Math.max(1, options?.count ?? 30))),
-    );
+  private async request(url: URL, host: string): Promise<unknown> {
     const response = await (this.config.fetchImpl ?? fetch)(url, {
       headers: {
         accept: "application/json",
+        "Content-Type": "application/json",
         "X-RapidAPI-Key": this.config.apiKey,
         "X-RapidAPI-Host": host,
       },
@@ -306,10 +340,103 @@ export class TikTokRapidApiClient {
     }
     let payload: unknown;
     try {
-      payload = JSON.parse(body);
+      payload = JSON.parse(body) as unknown;
     } catch {
       throw new Error("TikTok RapidAPI returned invalid JSON");
     }
+    const statusCode = first(payload, [
+      ["status_code"],
+      ["statusCode"],
+      ["data", "status_code"],
+      ["data", "statusCode"],
+    ]);
+    if (
+      statusCode !== undefined &&
+      statusCode !== 0 &&
+      statusCode !== "0" &&
+      statusCode !== "ok"
+    ) {
+      const message =
+        text(
+          first(payload, [
+            ["status_msg"],
+            ["statusMessage"],
+            ["message"],
+            ["data", "status_msg"],
+          ]),
+        ) ?? "unknown provider error";
+      throw new Error(
+        `TikTok RapidAPI provider status ${String(statusCode)}: ${message.slice(0, 200)}`,
+      );
+    }
+    return payload;
+  }
+
+  private provider(host: string): TikTokRapidApiProvider {
+    return (
+      this.config.provider ??
+      (host === "tiktok-all-in-one-api.p.rapidapi.com"
+        ? "all-in-one"
+        : "tiktok-api23")
+    );
+  }
+
+  async search(
+    keywords: string,
+    options?: { region?: string; count?: number },
+  ): Promise<TikTokSearchPost[]> {
+    const host = this.config.host ?? "tiktok-api23.p.rapidapi.com";
+    const provider = this.provider(host);
+    if (provider === "tiktok-api23") {
+      return this.searchTikTokApi23(keywords, host, options?.count ?? 30);
+    }
+
+    const endpoint = this.config.endpoint ?? `https://${host}/search/video`;
+    const url = new URL(endpoint);
+    url.searchParams.set("keywords", keywords);
+    url.searchParams.set("region", options?.region ?? "JP");
+    url.searchParams.set(
+      "count",
+      String(Math.min(50, Math.max(1, options?.count ?? 30))),
+    );
+    const payload = await this.request(url, host);
     return parseTikTokSearchResponse(payload);
+  }
+
+  private async searchTikTokApi23(
+    keywords: string,
+    host: string,
+    requestedCount: number,
+  ): Promise<TikTokSearchPost[]> {
+    const endpoint =
+      this.config.endpoint ?? `https://${host}/api/post/discover`;
+    const targetCount = Math.min(30, Math.max(1, requestedCount));
+    const posts = new Map<string, TikTokSearchPost>();
+
+    // Discover Posts by Keyword returns around five items per page. Six
+    // requests cover the requested maximum of 30 while keeping usage bounded.
+    for (let pageNumber = 1; pageNumber <= 6; pageNumber += 1) {
+      const url = new URL(endpoint);
+      url.searchParams.set("keyword", keywords);
+      url.searchParams.set("page", String(pageNumber));
+      const payload = await this.request(url, host);
+      const page = parseTikTokSearchPage(payload);
+      if (!page.posts.length) {
+        console.warn(
+          JSON.stringify({
+            stage: "provider-page",
+            pageNumber,
+            responseShape: payloadShape(payload),
+          }),
+        );
+      }
+      for (const post of page.posts) {
+        if (!posts.has(post.videoId)) posts.set(post.videoId, post);
+        if (posts.size >= targetCount) break;
+      }
+      if (posts.size >= targetCount || !page.hasMore) break;
+    }
+
+    return [...posts.values()].slice(0, targetCount);
   }
 }

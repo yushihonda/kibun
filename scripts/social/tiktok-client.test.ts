@@ -63,6 +63,38 @@ describe("TikTok RapidAPI adapter", () => {
     expect(posts[0].url).toContain("/@fan/video/987654321");
   });
 
+  it("normalizes the tiktok-api23 keyword discovery response", () => {
+    const posts = parseTikTokSearchResponse({
+      hasMore: true,
+      videoList: [
+        {
+          id: "7226469547300146433",
+          desc: "映画名の考察 #映画名 #伏線",
+          createTime: 1_682_543_565,
+          author: { uniqueId: "movie_fan" },
+          stats: {
+            playCount: 23_000_000,
+            diggCount: 642_300,
+            commentCount: 10_200,
+            shareCount: 80_200,
+          },
+          textExtra: [{ hashtagName: "映画名" }, { hashtagName: "伏線" }],
+          video: { duration: 60 },
+        },
+      ],
+    });
+    expect(posts[0]).toMatchObject({
+      videoId: "7226469547300146433",
+      authorUsername: "movie_fan",
+      views: 23_000_000,
+      likes: 642_300,
+      comments: 10_200,
+      shares: 80_200,
+      hashtags: ["映画名", "伏線"],
+      durationSeconds: 60,
+    });
+  });
+
   it("keeps short ambiguous titles only when an exact hashtag matches", () => {
     expect(
       scoreTikTokTitleRelevance(
@@ -81,26 +113,93 @@ describe("TikTok RapidAPI adapter", () => {
     ).toBe(1);
   });
 
-  it("sends credentials only in server-side RapidAPI headers", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [] }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
+  it("paginates tiktok-api23 with its keyword and page contract", async () => {
+    const item = (id: number) => ({
+      id: String(700_000_000 + id),
+      desc: `作品名の感想 ${id}`,
+      author: { uniqueId: `fan${id}` },
+      stats: { playCount: 1_000 + id },
+    });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            hasMore: true,
+            videoList: Array.from({ length: 5 }, (_, index) => item(index)),
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            hasMore: false,
+            videoList: Array.from({ length: 5 }, (_, index) => item(index + 5)),
+          }),
+          { status: 200 },
+        ),
+      );
     const client = new TikTokRapidApiClient({
       apiKey: "secret",
       fetchImpl,
     });
-    await client.search("作品名 映画");
-    expect(fetchImpl).toHaveBeenCalledWith(
+    const posts = await client.search("作品名", { count: 8 });
+    expect(posts).toHaveLength(8);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
       expect.any(URL),
       expect.objectContaining({
         headers: expect.objectContaining({
           "X-RapidAPI-Key": "secret",
-          "X-RapidAPI-Host": "tiktok-all-in-one-api.p.rapidapi.com",
+          "X-RapidAPI-Host": "tiktok-api23.p.rapidapi.com",
         }),
       }),
+    );
+    const firstUrl = fetchImpl.mock.calls[0]?.[0] as URL;
+    const secondUrl = fetchImpl.mock.calls[1]?.[0] as URL;
+    expect(firstUrl.pathname).toBe("/api/post/discover");
+    expect(firstUrl.searchParams.get("keyword")).toBe("作品名");
+    expect(firstUrl.searchParams.get("page")).toBe("1");
+    expect(secondUrl.searchParams.get("page")).toBe("2");
+  });
+
+  it("retains the original all-in-one provider contract when configured", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: [] }), { status: 200 }),
+      );
+    const client = new TikTokRapidApiClient({
+      apiKey: "secret",
+      provider: "all-in-one",
+      host: "tiktok-all-in-one-api.p.rapidapi.com",
+      fetchImpl,
+    });
+    await client.search("作品名 映画", { region: "JP", count: 30 });
+    const url = fetchImpl.mock.calls[0]?.[0] as URL;
+    expect(url.pathname).toBe("/search/video");
+    expect(url.searchParams.get("keywords")).toBe("作品名 映画");
+    expect(url.searchParams.get("region")).toBe("JP");
+    expect(url.searchParams.get("count")).toBe("30");
+  });
+
+  it("surfaces provider errors returned inside an HTTP 200 response", async () => {
+    const client = new TikTokRapidApiClient({
+      apiKey: "secret",
+      fetchImpl: vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status_code: 10_216,
+            status_msg: "Search failed",
+          }),
+          { status: 200 },
+        ),
+      ),
+    });
+    await expect(client.search("作品名 映画", { count: 10 })).rejects.toThrow(
+      "provider status 10216: Search failed",
     );
   });
 });
