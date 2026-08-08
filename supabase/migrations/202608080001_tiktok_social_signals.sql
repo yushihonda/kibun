@@ -6,7 +6,9 @@ create table public.movie_social_posts (
   platform public.video_platform not null default 'tiktok'
     check (platform = 'tiktok'),
   video_id text not null check (char_length(video_id) between 1 and 128),
-  url text not null check (url ~ '^https://([a-z0-9-]+\\.)*tiktok\\.com/'),
+  url text not null check (
+    url ~ $tiktok_url$^https://([a-z0-9-]+\.)*tiktok\.com/$tiktok_url$
+  ),
   caption text not null default '' check (char_length(caption) <= 4000),
   author_username text check (author_username is null or char_length(author_username) <= 100),
   region_code text check (region_code is null or region_code ~ '^[A-Z]{2}$'),

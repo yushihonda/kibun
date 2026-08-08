@@ -9,6 +9,13 @@ const sql = readFileSync(
   ),
   "utf8",
 ).toLowerCase();
+const urlConstraintFixSql = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/202608080002_fix_tiktok_url_check.sql",
+  ),
+  "utf8",
+).toLowerCase();
 
 describe("TikTok social signal migration", () => {
   it("adds normalized posts and title-level aggregate signals", () => {
@@ -38,5 +45,17 @@ describe("TikTok social signal migration", () => {
     );
     expect(sql).not.toContain("video_blob");
     expect(sql).not.toContain("comment_body");
+  });
+
+  it("accepts canonical HTTPS TikTok post URLs", () => {
+    expect(sql).toContain(
+      "$tiktok_url$^https://([a-z0-9-]+\\.)*tiktok\\.com/$tiktok_url$",
+    );
+    expect(urlConstraintFixSql).toContain(
+      "drop constraint if exists movie_social_posts_url_check",
+    );
+    expect(urlConstraintFixSql).toContain(
+      "$tiktok_url$^https://([a-z0-9-]+\\.)*tiktok\\.com/$tiktok_url$",
+    );
   });
 });
