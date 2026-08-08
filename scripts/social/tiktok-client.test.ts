@@ -65,23 +65,26 @@ describe("TikTok RapidAPI adapter", () => {
 
   it("normalizes the TokApi mobile search response", () => {
     const posts = parseTikTokSearchResponse({
-      aweme_list: [
+      search_item_list: [
         {
-          aweme_id: "7212345678901234567",
-          desc: "新作映画の感想 #新作映画 #映画好き",
-          create_time: 1_785_945_600,
-          author: { unique_id: "cinema_fan", region: "jp" },
-          statistics: {
-            play_count: 45_000,
-            digg_count: 3_200,
-            comment_count: 180,
-            share_count: 95,
+          aweme_info: {
+            aweme_id: "7212345678901234567",
+            desc: "新作映画の感想 #新作映画 #映画好き",
+            create_time: 1_785_945_600,
+            author: { unique_id: "cinema_fan", region: "jp" },
+            statistics: {
+              play_count: 45_000,
+              digg_count: 3_200,
+              comment_count: 180,
+              share_count: 95,
+            },
+            text_extra: [
+              { hashtag_name: "新作映画" },
+              { hashtag_name: "映画好き" },
+            ],
+            video: { duration: 42_000 },
           },
-          text_extra: [
-            { hashtag_name: "新作映画" },
-            { hashtag_name: "映画好き" },
-          ],
-          video: { duration: 42_000 },
+          position: 0,
         },
       ],
     });

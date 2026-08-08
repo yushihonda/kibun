@@ -150,8 +150,13 @@ function extractItems(payload: unknown): unknown[] {
     ["itemList"],
     ["videoList"],
     ["aweme_list"],
+    ["search_item_list"],
+    ["data", "search_item_list"],
   ];
-  return arrayAt(payload, candidates);
+  return arrayAt(payload, candidates).map(
+    (item) =>
+      first(item, [["aweme_info"], ["awemeInfo"], ["item_info"]]) ?? item,
+  );
 }
 
 function payloadShape(value: unknown, depth = 0): unknown {
