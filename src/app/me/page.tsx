@@ -32,23 +32,21 @@ export default async function MyPage() {
   const supabase = await createClient();
   const userResult = supabase ? await supabase.auth.getUser() : null;
   const user = userResult?.data.user ?? null;
-  const { data } = user
-    ? await supabase!
-        .from("user_movie_interactions")
-        .select(
-          "status,is_favorite,rating,updated_at,movie:movies(id,title,poster_path)",
-        )
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-    : { data: null };
-  const shelf = (data ?? []) as unknown as ShelfRow[];
   const [
+    { data: shelfData },
     { data: profile },
     { data: preference },
     movieChoices,
     recommendationResult,
   ] = user
     ? await Promise.all([
+        supabase!
+          .from("user_movie_interactions")
+          .select(
+            "status,is_favorite,rating,updated_at,movie:movies(id,title,poster_path)",
+          )
+          .eq("user_id", user.id)
+          .order("updated_at", { ascending: false }),
         supabase!
           .from("profiles")
           .select("display_name,role")
@@ -62,12 +60,19 @@ export default async function MyPage() {
           .eq("user_id", user.id)
           .maybeSingle(),
         loadCatalogMovies(supabase!, { limit: 12 }).catch(() => []),
-        loadRecommendations(supabase!, { limit: 8 }).catch(() => ({
+        loadRecommendations(supabase!, { limit: 8, user }).catch(() => ({
           movies: [],
           personalized: false,
         })),
       ])
-    : [{ data: null }, { data: null }, [], { movies: [], personalized: false }];
+    : [
+        { data: null },
+        { data: null },
+        { data: null },
+        [],
+        { movies: [], personalized: false },
+      ];
+  const shelf = (shelfData ?? []) as unknown as ShelfRow[];
   const watched = shelf.filter((item) => item.status === "WATCHED");
   const tabs = [
     {

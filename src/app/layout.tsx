@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Geist } from "next/font/google";
+import { Suspense } from "react";
 import { BottomNav } from "@/components/bottom-nav";
 import { PendingActionRestorer } from "@/components/pending-action-restorer";
 import { siteConfig } from "@/config/site";
@@ -41,11 +42,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+async function StructuredData() {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const structuredData = {
     "@context": "https://schema.org",
@@ -59,17 +56,30 @@ export default async function RootLayout({
       "query-input": "required name=search_term_string",
     },
   };
+
+  return (
+    <script
+      nonce={nonce}
+      suppressHydrationWarning
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+      }}
+    />
+  );
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="ja" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full bg-zinc-950 text-white">
-        <script
-          nonce={nonce}
-          suppressHydrationWarning
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
-          }}
-        />
+        <Suspense fallback={null}>
+          <StructuredData />
+        </Suspense>
         <PendingActionRestorer />
         {children}
         <BottomNav />

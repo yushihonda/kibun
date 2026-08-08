@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { loadCatalogMovies } from "@/lib/movies/catalog";
 import {
   buildPreferenceProfile,
@@ -68,12 +68,18 @@ async function loadCandidatePool(supabase: SupabaseClient, now: Date) {
 
 export async function loadRecommendations(
   supabase: SupabaseClient,
-  options?: { seedMovieId?: string; limit?: number; now?: Date },
+  options?: {
+    seedMovieId?: string;
+    limit?: number;
+    now?: Date;
+    user?: User | null;
+  },
 ) {
   const now = options?.now ?? new Date();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user =
+    options && "user" in options
+      ? (options.user ?? null)
+      : (await supabase.auth.getUser()).data.user;
   const [
     { data: preferenceRow },
     { data: interactionRows },
