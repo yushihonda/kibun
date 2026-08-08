@@ -124,6 +124,7 @@ describe("recommendMovies", () => {
         sentimentScore: 0.9,
         topHashtags: ["考察"],
         topics: ["ネタバレ考察"],
+        latestPostAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         featuredPosts: [],
       },

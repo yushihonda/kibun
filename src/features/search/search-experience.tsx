@@ -52,10 +52,12 @@ const providerSlugs = new Set<string>(
 
 export function SearchExperience({
   initialMovies,
+  initialRails = [],
   editorialMovies = [],
   providerLogos = {},
 }: {
   initialMovies: Movie[];
+  initialRails?: MovieRail[];
   editorialMovies?: Movie[];
   providerLogos?: Record<string, string>;
 }) {
@@ -260,11 +262,13 @@ export function SearchExperience({
   );
   const movies = (hasRemoteSearchInput ? remoteMovies : null) ?? localResults;
   const rails =
-    (hasRemoteSearchInput ? remoteRails : null) ??
-    buildSearchRails(movies, searchPlan, {
-      editorialMovies,
-      emptyQuery: !query.trim(),
-    });
+    !hasSearchInput && initialRails.length
+      ? initialRails
+      : ((hasRemoteSearchInput ? remoteRails : null) ??
+        buildSearchRails(movies, searchPlan, {
+          editorialMovies,
+          emptyQuery: !query.trim(),
+        }));
   const interpretationLabels =
     interpretation.length > 0 ? interpretation : searchPlan.labels;
 

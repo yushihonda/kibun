@@ -8,7 +8,10 @@ import {
 } from "../src/lib/social/tiktok-signals.js";
 import type { SocialPostPreview } from "../src/types/movie.js";
 import { analyzeTikTokPosts } from "./social/analyze-tiktok-posts.js";
-import { selectRotatingCandidates } from "./social/tiktok-candidates.js";
+import {
+  prioritizeLeastRecentlyRefreshed,
+  selectBalancedMediaCandidates,
+} from "./social/tiktok-candidates.js";
 import {
   TikTokRapidApiClient,
   type TikTokSearchPost,
@@ -78,6 +81,11 @@ type SocialPostRow = {
   share_count: number | string;
   engagement_rate: number | string;
   hashtags: string[] | null;
+};
+
+type SocialSignalRefreshRow = {
+  movie_id: string;
+  calculated_at: string;
 };
 
 const movieFields =
@@ -164,7 +172,7 @@ async function loadCandidates(
   for (const result of [trending, theatrical, popular]) {
     if (result.error) throw result.error;
   }
-  return [
+  const candidates = [
     ...new Map(
       [trending.data, theatrical.data, popular.data]
         .flat()
@@ -177,6 +185,26 @@ async function loadCandidates(
         candidateScore(b) - candidateScore(a) || a.id.localeCompare(b.id),
     )
     .slice(0, limit);
+  if (!candidates.length) return [];
+  const { data: refreshRows, error: refreshError } = await supabase
+    .from("movie_social_signals")
+    .select("movie_id,calculated_at")
+    .in(
+      "movie_id",
+      candidates.map((movie) => movie.id),
+    );
+  if (refreshError) throw refreshError;
+  const refreshedAt = new Map(
+    ((refreshRows ?? []) as SocialSignalRefreshRow[]).map((row) => [
+      row.movie_id,
+      Date.parse(row.calculated_at) || 0,
+    ]),
+  );
+  return prioritizeLeastRecentlyRefreshed(
+    candidates,
+    refreshedAt,
+    candidateScore,
+  );
 }
 
 function previewFromRow(row: SocialPostRow): TikTokSignalPost {
@@ -269,11 +297,11 @@ async function main() {
     100,
   );
   const postsPerTitle = integerEnv("TIKTOK_SYNC_POSTS_PER_TITLE", 30, 1, 50);
-  const rotationIntervalDays = integerEnv(
-    "TIKTOK_SYNC_ROTATION_INTERVAL_DAYS",
-    2,
+  const maxPagesPerTitle = integerEnv(
+    "TIKTOK_SYNC_MAX_PAGES_PER_TITLE",
+    6,
     1,
-    31,
+    6,
   );
   const minimumViews = integerEnv("TIKTOK_SYNC_MIN_VIEWS", 500, 0, 10_000_000);
   const aiLimit = integerEnv("TIKTOK_AI_MAX_TITLES", 10, 0, 100);
@@ -305,15 +333,7 @@ async function main() {
   const errors: Array<{ movieId: string; message: string }> = [];
   try {
     const candidatePool = await loadCandidates(supabase, candidatePoolLimit);
-    const explicitMovieIds = process.env.TIKTOK_SYNC_MOVIE_IDS?.trim();
-    const movies = explicitMovieIds
-      ? candidatePool.slice(0, titleLimit)
-      : selectRotatingCandidates(
-          candidatePool,
-          titleLimit,
-          new Date(),
-          rotationIntervalDays,
-        );
+    const movies = selectBalancedMediaCandidates(candidatePool, titleLimit);
     for (const movie of movies) {
       try {
         const aliases = aliasesFor(movie);
@@ -321,6 +341,7 @@ async function main() {
         const results = await client.search(searchKeyword, {
           region: "JP",
           count: postsPerTitle,
+          maxPages: maxPagesPerTitle,
         });
         const regionalResults = results.filter((post) =>
           matchesTikTokTargetRegion(post, "JP"),
@@ -350,10 +371,6 @@ async function main() {
         );
         await savePosts(supabase, movie, relevant);
         const savedRows = await loadSavedPosts(supabase, movie.id);
-        if (!savedRows.length) {
-          processed += 1;
-          continue;
-        }
         let analysis;
         if (openAiApiKey && relevant.length > 0 && aiAnalyzed < aiLimit) {
           try {

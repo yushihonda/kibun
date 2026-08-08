@@ -121,6 +121,7 @@ describe("buildSearchRails", () => {
       sentimentScore: 0.7,
       topHashtags: [],
       topics: [],
+      latestPostAt: "2026-08-08T00:00:00Z",
       updatedAt: "2026-08-08T00:00:00Z",
       featuredPosts: [],
     };
@@ -135,6 +136,7 @@ describe("buildSearchRails", () => {
         }),
       ],
       null,
+      { now: new Date("2026-08-08T12:00:00Z") },
     );
 
     expect(rails.find((rail) => rail.id === "tiktok-movies")?.movies).toEqual([
@@ -143,5 +145,36 @@ describe("buildSearchRails", () => {
     expect(rails.find((rail) => rail.id === "tiktok-dramas")?.movies).toEqual([
       expect.objectContaining({ id: "tv-social", mediaType: "tv" }),
     ]);
+  });
+
+  it("does not label recalculated old TikTok posts as currently trending", () => {
+    const rails = buildSearchRails(
+      [
+        movie({
+          id: "stale-social",
+          title: "昔の話題作",
+          socialSignals: {
+            postCount: 20,
+            totalViews: 2_000_000,
+            totalLikes: 100_000,
+            totalComments: 1_000,
+            totalShares: 500,
+            averageEngagementRate: 5,
+            trendScore: 100,
+            sentiment: "positive",
+            sentimentScore: 0.7,
+            topHashtags: [],
+            topics: [],
+            latestPostAt: "2026-05-01T00:00:00Z",
+            updatedAt: "2026-08-08T00:00:00Z",
+            featuredPosts: [],
+          },
+        }),
+      ],
+      null,
+      { now: new Date("2026-08-08T12:00:00Z") },
+    );
+
+    expect(rails.some((rail) => rail.id.startsWith("tiktok-"))).toBe(false);
   });
 });

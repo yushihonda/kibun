@@ -62,6 +62,12 @@ test("feed and search are reachable", async ({ page, request }) => {
     page.getByPlaceholder("例：金曜の夜、何も考えずスカッとしたい"),
   ).toBeVisible();
   await expect(page.getByText("今の気分に刺さる映画")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "今週の話題映画", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "今週の話題ドラマ", exact: true }),
+  ).toBeVisible();
 
   const searchInput = page.getByPlaceholder(
     "例：金曜の夜、何も考えずスカッとしたい",

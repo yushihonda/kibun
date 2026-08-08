@@ -21,7 +21,7 @@ import { Brand } from "@/components/brand";
 import { ProviderBadge } from "@/components/provider-badge";
 import type { Movie, MovieRail } from "@/types/movie";
 import { formatRuntime } from "@/lib/utils";
-import { isNowPlayingTitle } from "@/lib/discovery/ranking";
+import { isFreshSocialTrend, isNowPlayingTitle } from "@/lib/discovery/ranking";
 import { groupProviderServices } from "@/lib/providers/catalog";
 import {
   getAnalyticsSessionId,
@@ -477,7 +477,7 @@ export function MovieDetails({
           ))}
         </div>
 
-        {movie.socialSignals && movie.socialSignals.postCount > 0 && (
+        {isFreshSocialTrend(movie) && movie.socialSignals && (
           <section className="mt-6 rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/8 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -487,7 +487,7 @@ export function MovieDetails({
                 <h3 className="mt-1 text-lg font-black">いまの口コミ</h3>
               </div>
               <p className="text-[10px] text-white/45">
-                {movie.socialSignals.updatedAt.slice(0, 10)} 更新
+                {movie.socialSignals.latestPostAt?.slice(0, 10)} 最新投稿
               </p>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -885,7 +885,7 @@ export function MovieFeed({
             index,
           ) => (
             <article
-              key={movie.id}
+              key={`${sectionId}:${movie.id}`}
               data-index={index}
               data-movie-id={movie.id}
               data-testid="movie-feed-item"
@@ -998,7 +998,7 @@ export function MovieFeed({
                       ★ {movie.voteAverage.toFixed(1)}
                     </span>
                   </p>
-                  {(movie.socialSignals?.trendScore ?? 0) >= 20 && (
+                  {isFreshSocialTrend(movie) && (
                     <p className="mt-2 w-fit rounded-full bg-fuchsia-600/90 px-3 py-1 text-[11px] font-black text-white shadow-lg">
                       TikTokで話題 ・{" "}
                       {compactNumber.format(
@@ -1085,9 +1085,9 @@ export function MovieFeed({
       </div>
 
       <div className="fixed top-1/2 right-1.5 z-30 flex -translate-y-1/2 flex-col gap-1">
-        {feedEntries.map(({ movie }, index) => (
+        {feedEntries.map(({ movie, sectionId }, index) => (
           <button
-            key={movie.id}
+            key={`${sectionId}:${movie.id}`}
             type="button"
             onClick={() =>
               scroller.current?.children[index]?.scrollIntoView({

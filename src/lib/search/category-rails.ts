@@ -1,5 +1,7 @@
 import {
   isHighConfidenceRating,
+  isFreshSocialTrend,
+  socialTrendBoost,
   weightedRating,
 } from "@/lib/discovery/ranking";
 import type { SearchPlan } from "@/lib/search/query-intent";
@@ -40,12 +42,14 @@ export function buildSearchRails(
   options?: {
     editorialMovies?: Movie[];
     emptyQuery?: boolean;
+    now?: Date;
   },
 ): MovieRail[] {
   const rails: MovieRail[] = [];
   const used = new Set<string>();
   const pool = uniqueById(movies);
   const emptyQuery = options?.emptyQuery ?? false;
+  const now = options?.now ?? new Date();
 
   const editorialSource = options?.editorialMovies?.length
     ? uniqueById(options.editorialMovies)
@@ -61,11 +65,11 @@ export function buildSearchRails(
   }
 
   const socialTrending = [...pool]
-    .filter((movie) => (movie.socialSignals?.trendScore ?? 0) >= 20)
+    .filter((movie) => isFreshSocialTrend(movie, now))
     .sort(
       (a, b) =>
-        (b.socialSignals?.trendScore ?? 0) -
-          (a.socialSignals?.trendScore ?? 0) || a.id.localeCompare(b.id),
+        socialTrendBoost(b, now) - socialTrendBoost(a, now) ||
+        a.id.localeCompare(b.id),
     );
   const socialMovieRail = takeRail(
     "tiktok-movies",

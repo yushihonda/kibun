@@ -398,7 +398,7 @@ export class TikTokRapidApiClient {
 
   async search(
     keywords: string,
-    options?: { region?: string; count?: number },
+    options?: { region?: string; count?: number; maxPages?: number },
   ): Promise<TikTokSearchPost[]> {
     const host =
       this.config.host ??
@@ -409,7 +409,12 @@ export class TikTokRapidApiClient {
           : "tokapi-mobile-version.p.rapidapi.com");
     const provider = this.provider(host);
     if (provider === "tiktok-api23") {
-      return this.searchTikTokApi23(keywords, host, options?.count ?? 30);
+      return this.searchTikTokApi23(
+        keywords,
+        host,
+        options?.count ?? 30,
+        options?.maxPages,
+      );
     }
     if (provider === "tokapi-mobile") {
       return this.searchTokApiMobile(
@@ -417,6 +422,7 @@ export class TikTokRapidApiClient {
         host,
         options?.region ?? "JP",
         options?.count ?? 30,
+        options?.maxPages,
       );
     }
 
@@ -437,6 +443,7 @@ export class TikTokRapidApiClient {
     host: string,
     region: string,
     requestedCount: number,
+    requestedMaxPages?: number,
   ): Promise<TikTokSearchPost[]> {
     const endpoint = this.config.endpoint ?? `https://${host}/v1/search/post`;
     const targetCount = Math.min(30, Math.max(1, requestedCount));
@@ -445,7 +452,11 @@ export class TikTokRapidApiClient {
 
     // TokApi accepts up to the requested count per page. Three requests still
     // cover 30 results if the provider caps a response at ten posts.
-    for (let pageNumber = 1; pageNumber <= 3; pageNumber += 1) {
+    const maxPages = Math.min(
+      3,
+      Math.max(1, Math.floor(requestedMaxPages ?? 3)),
+    );
+    for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
       const url = new URL(endpoint);
       url.searchParams.set("keyword", keywords);
       url.searchParams.set("count", String(targetCount - posts.size));
@@ -483,6 +494,7 @@ export class TikTokRapidApiClient {
     keywords: string,
     host: string,
     requestedCount: number,
+    requestedMaxPages?: number,
   ): Promise<TikTokSearchPost[]> {
     const endpoint =
       this.config.endpoint ?? `https://${host}/api/post/discover`;
@@ -491,7 +503,11 @@ export class TikTokRapidApiClient {
 
     // Discover Posts by Keyword returns around five items per page. Six
     // requests cover the requested maximum of 30 while keeping usage bounded.
-    for (let pageNumber = 1; pageNumber <= 6; pageNumber += 1) {
+    const maxPages = Math.min(
+      6,
+      Math.max(1, Math.floor(requestedMaxPages ?? 6)),
+    );
+    for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
       const url = new URL(endpoint);
       url.searchParams.set("keyword", keywords);
       url.searchParams.set("page", String(pageNumber));

@@ -85,6 +85,17 @@ test("preferences, recommendations and cross-device shelf sync", async ({
   });
   expect(preferenceResponse.ok()).toBe(true);
 
+  const personalizedSearch = await page.request.get("/api/search?limit=20");
+  expect(personalizedSearch.ok()).toBe(true);
+  const personalizedSearchBody = (await personalizedSearch.json()) as {
+    hits: Array<{ matchReasons?: string[] }>;
+  };
+  expect(
+    personalizedSearchBody.hits.some((movie) =>
+      movie.matchReasons?.some((reason) => reason.startsWith("好みの")),
+    ),
+  ).toBe(true);
+
   const shelfResponse = await page.request.put(
     `/api/movies/${movies![0].id}/interaction`,
     { data: { status: "WATCHLIST", isFavorite: true, rating: 5 } },

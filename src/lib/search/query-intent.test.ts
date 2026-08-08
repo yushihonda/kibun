@@ -257,4 +257,61 @@ describe("rankSearchBatches", () => {
       )[0].id,
     ).toBe("exact-social-title");
   });
+
+  it("uses bounded user preferences only to reorder similarly relevant titles", () => {
+    const plan = analyzeSearchQuery("人生");
+    const exact = movie({ id: "exact-personalized", title: "人生" });
+    const preferred = movie({
+      id: "preferred",
+      title: "別の映画",
+      genres: ["ホラー"],
+      emotionalTags: ["ゾクゾク"],
+      popularity: 999,
+    });
+    const neutral = movie({ id: "neutral", title: "静かな作品" });
+    const ranked = rankSearchBatches(
+      [
+        {
+          query: plan.queries[0],
+          movies: [neutral, preferred, exact],
+        },
+      ],
+      plan,
+      {
+        preferredGenres: ["ホラー"],
+        preferredEmotionalTags: ["ゾクゾク"],
+      },
+    );
+
+    expect(ranked[0].id).toBe("exact-personalized");
+    expect(ranked.indexOf(preferred)).toBeLessThan(ranked.indexOf(neutral));
+  });
+
+  it("never boosts a saved genre that the current query explicitly avoids", () => {
+    const plan = analyzeSearchQuery("疲れたから癒やされたい。怖くないもの");
+    const gentle = movie({
+      id: "gentle-current-intent",
+      title: "穏やかな休日",
+      genres: ["ファミリー"],
+      emotionalTags: ["癒やし"],
+    });
+    const horror = movie({
+      id: "saved-but-avoided",
+      title: "恐怖の休日",
+      genres: ["ホラー"],
+      emotionalTags: ["ゾクゾク"],
+      popularity: 999,
+    });
+
+    expect(
+      rankSearchBatches(
+        [{ query: plan.queries[0], movies: [horror, gentle] }],
+        plan,
+        {
+          preferredGenres: ["ホラー"],
+          preferredEmotionalTags: ["ゾクゾク"],
+        },
+      )[0].id,
+    ).toBe("gentle-current-intent");
+  });
 });

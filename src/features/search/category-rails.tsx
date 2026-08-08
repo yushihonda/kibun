@@ -3,7 +3,7 @@
 import { ResilientImage as Image } from "@/components/resilient-image";
 import { ProviderBadge } from "@/components/provider-badge";
 import { groupProviderServices } from "@/lib/providers/catalog";
-import { isNowPlayingTitle } from "@/lib/discovery/ranking";
+import { isFreshSocialTrend, isNowPlayingTitle } from "@/lib/discovery/ranking";
 import type { Movie, MovieRail } from "@/types/movie";
 
 export function CategoryRails({
@@ -52,7 +52,7 @@ export function CategoryRails({
                       上映中
                     </span>
                   )}
-                  {(movie.socialSignals?.trendScore ?? 0) >= 20 && (
+                  {isFreshSocialTrend(movie) && (
                     <span
                       className={`absolute left-2 rounded-full bg-fuchsia-600 px-2 py-1 text-[10px] font-black text-white shadow-sm ${
                         isNowPlayingTitle(movie) ? "bottom-10" : "bottom-2"
@@ -78,7 +78,7 @@ export function CategoryRails({
                 <h3 className="mt-2 truncate text-sm font-black">
                   {movie.title}
                 </h3>
-                {movie.socialSignals && (
+                {isFreshSocialTrend(movie) && movie.socialSignals && (
                   <p className="mt-1 text-[10px] font-bold text-fuchsia-700">
                     {new Intl.NumberFormat("ja-JP", {
                       notation: "compact",

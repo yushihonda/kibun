@@ -16,14 +16,14 @@ AIタグ生成はRepository Variablesの `EMOTION_AI_MAX_MOVIES` と `EMOTION_AI
 
 ## TikTok話題同期
 
-GitHub Actionsの `TikTok movie and drama trends` は毎日02:50 UTCに実行する。映画とドラマを明示的に分けた上位20候補をローテーションし、RapidAPIの `TokApi - mobile version` にある `/v1/search/post` から日本地域・直近3か月を対象に1回1作品・最大30投稿の公開メタデータを取得する。無料Basic枠（月100リクエスト）では1作品につき最大3ページ、月最大93リクエストに抑える。反応率・話題度・共起ハッシュタグ・関心テーマ・感情傾向を作品別に更新し、動画ファイルと個々のコメント本文は保存しない。
+GitHub Actionsの `TikTok movie and drama trends` は毎日02:50 UTCに実行する。映画とドラマを含む上映中・週間トレンド・人気作品の上位90候補から、未取得または最終取得が古い3作品を優先し、映画とドラマを毎日最低1作品ずつ含める。RapidAPIの `TokApi - mobile version` にある `/v1/search/post` から日本地域・直近3か月を対象に各作品1ページ・最大10投稿の公開メタデータを取得する。無料Basic枠（月100リクエスト）に対して、31日×3作品×1ページの月最大93リクエストに固定する。該当投稿が0件だった作品も取得日時を記録するため、同じ作品の空振りで他作品の更新が止まらない。反応率・話題度・共起ハッシュタグ・関心テーマ・感情傾向を作品別に更新し、動画ファイルと個々のコメント本文は保存しない。
 
 追加のGitHub Secrets:
 
 - `RAPIDAPI_TIKTOK_KEY`（必須。未設定時は同期を安全にスキップ）
 - `OPENAI_API_KEY`（任意。未設定時は決定的な簡易感情判定へフォールバック）
 
-手動確認はActionsの `Run workflow` で `title_limit=1` のまま実行するか、ローカルで `npm run sync:tiktok` を実行し、`sync_runs.source = 'tiktok_social'`、`movie_social_posts`、`movie_social_signals` の件数と `/admin/operations` を確認する。APIプランを上げた場合だけ `TIKTOK_SYNC_TITLE_LIMIT`、`TIKTOK_SYNC_POSTS_PER_TITLE`、`TIKTOK_AI_MAX_TITLES` を増やす。
+手動確認はActionsの `Run workflow` で `title_limit=1` に下げて実行するか、ローカルで `npm run sync:tiktok` を実行し、`sync_runs.source = 'tiktok_social'`、`movie_social_posts`、`movie_social_signals` の件数と `/admin/operations` を確認する。無料枠では `TIKTOK_SYNC_TITLE_LIMIT=3`、`TIKTOK_SYNC_MAX_PAGES_PER_TITLE=1` を維持する。APIプランを上げた場合だけ、月間呼び出し上限を計算した上で `TIKTOK_SYNC_TITLE_LIMIT`、`TIKTOK_SYNC_POSTS_PER_TITLE`、`TIKTOK_SYNC_MAX_PAGES_PER_TITLE`、`TIKTOK_AI_MAX_TITLES` を増やす。
 
 ## 本番デプロイ
 
