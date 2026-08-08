@@ -100,7 +100,7 @@ export async function loadHomeFeed(
     }),
     loadEditorialMovies(supabase, { limit: 8 }).catch(() => []),
     user
-      ? loadRecommendations(supabase, { limit: 16, now }).catch(() => ({
+      ? loadRecommendations(supabase, { limit: 16, now, user }).catch(() => ({
           movies: [],
           personalized: false,
           personalizationEnabled: true,
