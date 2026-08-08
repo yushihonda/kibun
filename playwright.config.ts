@@ -19,9 +19,30 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
-    { name: "iphone", use: { ...devices["iPhone 15 Pro"] } },
+    {
+      name: "chromium",
+      testIgnore: /authenticated-user\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "mobile",
+      testIgnore: /authenticated-user\.spec\.ts/,
+      use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "webkit",
+      testIgnore: /authenticated-user\.spec\.ts/,
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "iphone",
+      testIgnore: /authenticated-user\.spec\.ts/,
+      use: { ...devices["iPhone 15 Pro"] },
+    },
+    {
+      name: "authenticated",
+      testMatch: /authenticated-user\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
 });
