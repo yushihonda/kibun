@@ -14,6 +14,7 @@ import {
   type TikTokSearchPost,
 } from "./social/tiktok-client.js";
 import {
+  matchesTikTokTargetRegion,
   scoreTikTokTitleRelevance,
   titleHashtags,
 } from "./social/tiktok-relevance.js";
@@ -321,7 +322,10 @@ async function main() {
           region: "JP",
           count: postsPerTitle,
         });
-        const relevant = results
+        const regionalResults = results.filter((post) =>
+          matchesTikTokTargetRegion(post, "JP"),
+        );
+        const relevant = regionalResults
           .map((post) => ({
             ...post,
             relevanceScore: scoreTikTokTitleRelevance(
@@ -340,6 +344,7 @@ async function main() {
             title: movie.title,
             searchKeyword,
             returnedPosts: results.length,
+            regionalPosts: regionalResults.length,
             relevantPosts: relevant.length,
           }),
         );

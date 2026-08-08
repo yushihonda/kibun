@@ -11,6 +11,16 @@ export function titleHashtags(title: string, aliases: string[] = []): string[] {
   return [...new Set([title, ...aliases].map(normalizeTitle).filter(Boolean))];
 }
 
+export function matchesTikTokTargetRegion(
+  post: Pick<TikTokSearchPost, "regionCode">,
+  targetRegion = "JP",
+): boolean {
+  return (
+    !post.regionCode ||
+    post.regionCode.toUpperCase() === targetRegion.toUpperCase()
+  );
+}
+
 export function scoreTikTokTitleRelevance(
   post: Pick<TikTokSearchPost, "caption" | "hashtags">,
   title: string,

@@ -3,7 +3,10 @@ import {
   parseTikTokSearchResponse,
   TikTokRapidApiClient,
 } from "./tiktok-client";
-import { scoreTikTokTitleRelevance } from "./tiktok-relevance";
+import {
+  matchesTikTokTargetRegion,
+  scoreTikTokTitleRelevance,
+} from "./tiktok-relevance";
 
 describe("TikTok RapidAPI adapter", () => {
   it("normalizes flat sample fields from the requested API", () => {
@@ -150,6 +153,12 @@ describe("TikTok RapidAPI adapter", () => {
         "愛",
       ),
     ).toBe(1);
+  });
+
+  it("keeps JP and provider-implied posts while rejecting other regions", () => {
+    expect(matchesTikTokTargetRegion({ regionCode: "JP" })).toBe(true);
+    expect(matchesTikTokTargetRegion({ regionCode: undefined })).toBe(true);
+    expect(matchesTikTokTargetRegion({ regionCode: "KR" })).toBe(false);
   });
 
   it("paginates TokApi mobile with its keyword, cursor, and JP filters", async () => {
