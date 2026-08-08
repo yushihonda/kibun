@@ -8,11 +8,13 @@ import {
 } from "../src/lib/social/tiktok-signals.js";
 import type { SocialPostPreview } from "../src/types/movie.js";
 import { analyzeTikTokPosts } from "./social/analyze-tiktok-posts.js";
+import { selectRotatingCandidates } from "./social/tiktok-candidates.js";
 import {
   TikTokRapidApiClient,
   type TikTokSearchPost,
 } from "./social/tiktok-client.js";
 import {
+  matchesTikTokTargetRegion,
   scoreTikTokTitleRelevance,
   titleHashtags,
 } from "./social/tiktok-relevance.js";
@@ -28,6 +30,28 @@ function integerEnv(name: string, fallback: number, min: number, max: number) {
   return Number.isInteger(parsed)
     ? Math.min(max, Math.max(min, parsed))
     : fallback;
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const value = error as Record<string, unknown>;
+    const details = ["message", "details", "hint", "code"]
+      .flatMap((key) => {
+        const field = value[key];
+        return typeof field === "string" && field.trim()
+          ? [`${key}=${field.trim()}`]
+          : [];
+      })
+      .join("; ");
+    if (details) return details;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Unknown structured error";
+    }
+  }
+  return String(error);
 }
 
 type MovieRow = {
@@ -237,14 +261,34 @@ async function main() {
     required("SUPABASE_SERVICE_ROLE_KEY"),
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
-  const titleLimit = integerEnv("TIKTOK_SYNC_TITLE_LIMIT", 20, 1, 100);
+  const titleLimit = integerEnv("TIKTOK_SYNC_TITLE_LIMIT", 1, 1, 100);
+  const candidatePoolLimit = integerEnv(
+    "TIKTOK_SYNC_CANDIDATE_POOL_LIMIT",
+    20,
+    titleLimit,
+    100,
+  );
   const postsPerTitle = integerEnv("TIKTOK_SYNC_POSTS_PER_TITLE", 30, 1, 50);
+  const rotationIntervalDays = integerEnv(
+    "TIKTOK_SYNC_ROTATION_INTERVAL_DAYS",
+    2,
+    1,
+    31,
+  );
   const minimumViews = integerEnv("TIKTOK_SYNC_MIN_VIEWS", 500, 0, 10_000_000);
   const aiLimit = integerEnv("TIKTOK_AI_MAX_TITLES", 10, 0, 100);
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
   const openAiModel = process.env.OPENAI_MODEL?.trim() || "gpt-5.6-luna";
+  const keywordOverride = process.env.TIKTOK_SYNC_KEYWORD_OVERRIDE?.trim();
   const client = new TikTokRapidApiClient({
     apiKey,
+    provider: (() => {
+      const provider = process.env.TIKTOK_RAPIDAPI_PROVIDER?.trim();
+      if (provider === "all-in-one" || provider === "tiktok-api23") {
+        return provider;
+      }
+      return "tokapi-mobile";
+    })(),
     host: process.env.TIKTOK_RAPIDAPI_HOST?.trim() || undefined,
     endpoint: process.env.TIKTOK_RAPIDAPI_ENDPOINT?.trim() || undefined,
   });
@@ -260,16 +304,28 @@ async function main() {
   let aiAnalyzed = 0;
   const errors: Array<{ movieId: string; message: string }> = [];
   try {
-    const movies = await loadCandidates(supabase, titleLimit);
+    const candidatePool = await loadCandidates(supabase, candidatePoolLimit);
+    const explicitMovieIds = process.env.TIKTOK_SYNC_MOVIE_IDS?.trim();
+    const movies = explicitMovieIds
+      ? candidatePool.slice(0, titleLimit)
+      : selectRotatingCandidates(
+          candidatePool,
+          titleLimit,
+          new Date(),
+          rotationIntervalDays,
+        );
     for (const movie of movies) {
       try {
         const aliases = aliasesFor(movie);
-        const mediaLabel = movie.media_type === "tv" ? "ドラマ" : "映画";
-        const results = await client.search(`${movie.title} ${mediaLabel}`, {
+        const searchKeyword = keywordOverride || movie.title;
+        const results = await client.search(searchKeyword, {
           region: "JP",
           count: postsPerTitle,
         });
-        const relevant = results
+        const regionalResults = results.filter((post) =>
+          matchesTikTokTargetRegion(post, "JP"),
+        );
+        const relevant = regionalResults
           .map((post) => ({
             ...post,
             relevanceScore: scoreTikTokTitleRelevance(
@@ -281,6 +337,17 @@ async function main() {
           .filter(
             (post) => post.relevanceScore >= 0.7 && post.views >= minimumViews,
           );
+        console.log(
+          JSON.stringify({
+            stage: "search",
+            movieId: movie.id,
+            title: movie.title,
+            searchKeyword,
+            returnedPosts: results.length,
+            regionalPosts: regionalResults.length,
+            relevantPosts: relevant.length,
+          }),
+        );
         await savePosts(supabase, movie, relevant);
         const savedRows = await loadSavedPosts(supabase, movie.id);
         if (!savedRows.length) {
@@ -301,7 +368,7 @@ async function main() {
           } catch (error) {
             console.warn("TikTok sentiment analysis failed", {
               movieId: movie.id,
-              message: error instanceof Error ? error.message : String(error),
+              message: errorMessage(error),
             });
           }
         }
@@ -348,7 +415,7 @@ async function main() {
       } catch (error) {
         errors.push({
           movieId: movie.id,
-          message: error instanceof Error ? error.message : String(error),
+          message: errorMessage(error),
         });
       }
     }
@@ -383,10 +450,7 @@ async function main() {
         status: "failed",
         finished_at: new Date().toISOString(),
         records_processed: imported,
-        error_message:
-          error instanceof Error
-            ? error.message.slice(0, 2_000)
-            : String(error),
+        error_message: errorMessage(error).slice(0, 2_000),
         metadata: { titlesProcessed: processed, errors: errors.slice(0, 20) },
       })
       .eq("id", run.id);
