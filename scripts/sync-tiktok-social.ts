@@ -31,6 +31,28 @@ function integerEnv(name: string, fallback: number, min: number, max: number) {
     : fallback;
 }
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const value = error as Record<string, unknown>;
+    const details = ["message", "details", "hint", "code"]
+      .flatMap((key) => {
+        const field = value[key];
+        return typeof field === "string" && field.trim()
+          ? [`${key}=${field.trim()}`]
+          : [];
+      })
+      .join("; ");
+    if (details) return details;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Unknown structured error";
+    }
+  }
+  return String(error);
+}
+
 type MovieRow = {
   id: string;
   title: string;
@@ -341,7 +363,7 @@ async function main() {
           } catch (error) {
             console.warn("TikTok sentiment analysis failed", {
               movieId: movie.id,
-              message: error instanceof Error ? error.message : String(error),
+              message: errorMessage(error),
             });
           }
         }
@@ -388,7 +410,7 @@ async function main() {
       } catch (error) {
         errors.push({
           movieId: movie.id,
-          message: error instanceof Error ? error.message : String(error),
+          message: errorMessage(error),
         });
       }
     }
@@ -423,10 +445,7 @@ async function main() {
         status: "failed",
         finished_at: new Date().toISOString(),
         records_processed: imported,
-        error_message:
-          error instanceof Error
-            ? error.message.slice(0, 2_000)
-            : String(error),
+        error_message: errorMessage(error).slice(0, 2_000),
         metadata: { titlesProcessed: processed, errors: errors.slice(0, 20) },
       })
       .eq("id", run.id);
