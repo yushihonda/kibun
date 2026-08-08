@@ -259,10 +259,13 @@ async function main() {
   const keywordOverride = process.env.TIKTOK_SYNC_KEYWORD_OVERRIDE?.trim();
   const client = new TikTokRapidApiClient({
     apiKey,
-    provider:
-      process.env.TIKTOK_RAPIDAPI_PROVIDER?.trim() === "all-in-one"
-        ? "all-in-one"
-        : "tiktok-api23",
+    provider: (() => {
+      const provider = process.env.TIKTOK_RAPIDAPI_PROVIDER?.trim();
+      if (provider === "all-in-one" || provider === "tiktok-api23") {
+        return provider;
+      }
+      return "tokapi-mobile";
+    })(),
     host: process.env.TIKTOK_RAPIDAPI_HOST?.trim() || undefined,
     endpoint: process.env.TIKTOK_RAPIDAPI_ENDPOINT?.trim() || undefined,
   });

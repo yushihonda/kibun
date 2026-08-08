@@ -14,11 +14,13 @@ export type TikTokSearchPost = {
   commentSamples: string[];
 };
 
-export type TikTokRapidApiProvider = "all-in-one" | "tiktok-api23";
+export type TikTokRapidApiProvider =
+  "all-in-one" | "tiktok-api23" | "tokapi-mobile";
 
 export type TikTokSearchPage = {
   posts: TikTokSearchPost[];
   hasMore: boolean;
+  nextOffset?: number;
 };
 
 type UnknownRecord = Record<string, unknown>;
@@ -307,6 +309,16 @@ export function parseTikTokSearchPage(payload: unknown): TikTokSearchPage {
       hasMoreValue === 1 ||
       hasMoreValue === "1" ||
       hasMoreValue === "true",
+    nextOffset: (() => {
+      const value = first(payload, [
+        ["cursor"],
+        ["data", "cursor"],
+        ["next_offset"],
+        ["nextOffset"],
+      ]);
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+    })(),
   };
 }
 
@@ -373,22 +385,34 @@ export class TikTokRapidApiClient {
   }
 
   private provider(host: string): TikTokRapidApiProvider {
-    return (
-      this.config.provider ??
-      (host === "tiktok-all-in-one-api.p.rapidapi.com"
-        ? "all-in-one"
-        : "tiktok-api23")
-    );
+    if (this.config.provider) return this.config.provider;
+    if (host === "tiktok-all-in-one-api.p.rapidapi.com") return "all-in-one";
+    if (host === "tiktok-api23.p.rapidapi.com") return "tiktok-api23";
+    return "tokapi-mobile";
   }
 
   async search(
     keywords: string,
     options?: { region?: string; count?: number },
   ): Promise<TikTokSearchPost[]> {
-    const host = this.config.host ?? "tiktok-api23.p.rapidapi.com";
+    const host =
+      this.config.host ??
+      (this.config.provider === "all-in-one"
+        ? "tiktok-all-in-one-api.p.rapidapi.com"
+        : this.config.provider === "tiktok-api23"
+          ? "tiktok-api23.p.rapidapi.com"
+          : "tokapi-mobile-version.p.rapidapi.com");
     const provider = this.provider(host);
     if (provider === "tiktok-api23") {
       return this.searchTikTokApi23(keywords, host, options?.count ?? 30);
+    }
+    if (provider === "tokapi-mobile") {
+      return this.searchTokApiMobile(
+        keywords,
+        host,
+        options?.region ?? "JP",
+        options?.count ?? 30,
+      );
     }
 
     const endpoint = this.config.endpoint ?? `https://${host}/search/video`;
@@ -401,6 +425,53 @@ export class TikTokRapidApiClient {
     );
     const payload = await this.request(url, host);
     return parseTikTokSearchResponse(payload);
+  }
+
+  private async searchTokApiMobile(
+    keywords: string,
+    host: string,
+    region: string,
+    requestedCount: number,
+  ): Promise<TikTokSearchPost[]> {
+    const endpoint = this.config.endpoint ?? `https://${host}/v1/search/post`;
+    const targetCount = Math.min(30, Math.max(1, requestedCount));
+    const posts = new Map<string, TikTokSearchPost>();
+    let offset = 0;
+
+    // TokApi accepts up to the requested count per page. Three requests still
+    // cover 30 results if the provider caps a response at ten posts.
+    for (let pageNumber = 1; pageNumber <= 3; pageNumber += 1) {
+      const url = new URL(endpoint);
+      url.searchParams.set("keyword", keywords);
+      url.searchParams.set("count", String(targetCount - posts.size));
+      url.searchParams.set("offset", String(offset));
+      url.searchParams.set("region", region.toUpperCase());
+      url.searchParams.set("sort_type", "0");
+      url.searchParams.set("publish_time", "90");
+      const payload = await this.request(url, host);
+      const page = parseTikTokSearchPage(payload);
+      if (!page.posts.length) {
+        console.warn(
+          JSON.stringify({
+            stage: "provider-page",
+            pageNumber,
+            responseShape: payloadShape(payload),
+          }),
+        );
+      }
+      for (const post of page.posts) {
+        if (!posts.has(post.videoId)) posts.set(post.videoId, post);
+        if (posts.size >= targetCount) break;
+      }
+      if (posts.size >= targetCount || !page.hasMore || !page.posts.length) {
+        break;
+      }
+      const nextOffset = page.nextOffset ?? offset + page.posts.length;
+      if (nextOffset <= offset) break;
+      offset = nextOffset;
+    }
+
+    return [...posts.values()].slice(0, targetCount);
   }
 
   private async searchTikTokApi23(

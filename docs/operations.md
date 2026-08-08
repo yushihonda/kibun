@@ -16,7 +16,7 @@ AIタグ生成はRepository Variablesの `EMOTION_AI_MAX_MOVIES` と `EMOTION_AI
 
 ## TikTok話題同期
 
-GitHub Actionsの `TikTok movie and drama trends` は毎月1日から29日まで2日おきの02:50 UTCに実行する。映画とドラマを明示的に分けた上位20候補をローテーションし、RapidAPIの `tiktok-api23` にある `Discover Posts by Keyword` から1回1作品・最大30投稿の公開メタデータを取得する。無料Basic枠（月100リクエスト）では1作品につき最大6ページ、月最大90リクエストに抑える。反応率・話題度・共起ハッシュタグ・関心テーマ・感情傾向を作品別に更新し、動画ファイルと個々のコメント本文は保存しない。
+GitHub Actionsの `TikTok movie and drama trends` は毎日02:50 UTCに実行する。映画とドラマを明示的に分けた上位20候補をローテーションし、RapidAPIの `TokApi - mobile version` にある `/v1/search/post` から日本地域・直近3か月を対象に1回1作品・最大30投稿の公開メタデータを取得する。無料Basic枠（月100リクエスト）では1作品につき最大3ページ、月最大93リクエストに抑える。反応率・話題度・共起ハッシュタグ・関心テーマ・感情傾向を作品別に更新し、動画ファイルと個々のコメント本文は保存しない。
 
 追加のGitHub Secrets:
 
