@@ -24,6 +24,7 @@ const movie = (
   matchReasons: overrides.matchReasons,
   editorialComment: overrides.editorialComment,
   video: overrides.video,
+  socialSignals: overrides.socialSignals,
 });
 
 describe("buildSearchRails", () => {
@@ -104,6 +105,43 @@ describe("buildSearchRails", () => {
     ]);
     expect(rails.find((rail) => rail.id === "dramas")?.movies).toEqual([
       expect.objectContaining({ id: "tv", mediaType: "tv" }),
+    ]);
+  });
+
+  it("separates TikTok-trending films and dramas into dedicated rails", () => {
+    const socialSignals = {
+      postCount: 3,
+      totalViews: 100_000,
+      totalLikes: 10_000,
+      totalComments: 100,
+      totalShares: 50,
+      averageEngagementRate: 10.2,
+      trendScore: 75,
+      sentiment: "positive" as const,
+      sentimentScore: 0.7,
+      topHashtags: [],
+      topics: [],
+      updatedAt: "2026-08-08T00:00:00Z",
+      featuredPosts: [],
+    };
+    const rails = buildSearchRails(
+      [
+        movie({ id: "film-social", title: "映画", socialSignals }),
+        movie({
+          id: "tv-social",
+          title: "ドラマ",
+          mediaType: "tv",
+          socialSignals,
+        }),
+      ],
+      null,
+    );
+
+    expect(rails.find((rail) => rail.id === "tiktok-movies")?.movies).toEqual([
+      expect.objectContaining({ id: "film-social", mediaType: "movie" }),
+    ]);
+    expect(rails.find((rail) => rail.id === "tiktok-dramas")?.movies).toEqual([
+      expect.objectContaining({ id: "tv-social", mediaType: "tv" }),
     ]);
   });
 });

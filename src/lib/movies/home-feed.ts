@@ -74,6 +74,7 @@ export async function loadHomeFeed(
     editorial,
     recommendationResult,
     savedResult,
+    socialResult,
   ] = await Promise.all([
     loadCatalogMovies(supabase, { limit: 240, orderBy: "popularity" }),
     loadCatalogMovies(supabase, { limit: 200, orderBy: "vote_count" }),
@@ -104,8 +105,27 @@ export async function loadHomeFeed(
           signalCount: 0,
         }),
     supabase.rpc("most_saved_movies", { p_limit: 60 }),
+    supabase
+      .from("movie_social_signals")
+      .select("movie_id,trend_score")
+      .gte(
+        "calculated_at",
+        new Date(now.getTime() - 30 * 86_400_000).toISOString(),
+      )
+      .order("trend_score", { ascending: false })
+      .limit(60),
   ]);
+  const socialMovieIds = (socialResult.data ?? []).map((row) =>
+    String(row.movie_id),
+  );
+  const socialPool = socialMovieIds.length
+    ? await loadCatalogMovies(supabase, {
+        limit: socialMovieIds.length,
+        movieIds: socialMovieIds,
+      })
+    : [];
   const pool = uniqueMovies([
+    socialPool,
     theatricalPool,
     weeklyPool,
     popularPool,
@@ -190,6 +210,35 @@ export async function loadHomeFeed(
       );
     }
   }
+
+  const socialCandidates = stableSort(
+    enrichedPool.filter(
+      (movie) =>
+        (movie.socialSignals?.postCount ?? 0) >= 1 &&
+        (movie.socialSignals?.trendScore ?? 0) >= 20,
+    ),
+    (movie) => movie.socialSignals?.trendScore ?? 0,
+  );
+  push(
+    section(
+      "tiktok-trending-movies",
+      "TikTokで話題の映画",
+      "公開投稿の再生数・反応率・新しさから、いま口コミが動いている映画",
+      socialCandidates.filter((movie) => movie.mediaType === "movie"),
+      used,
+      generatedAt,
+    ),
+  );
+  push(
+    section(
+      "tiktok-trending-dramas",
+      "TikTokで話題のドラマ",
+      "公開投稿の再生数・反応率・新しさから、いま口コミが動いているドラマ",
+      socialCandidates.filter((movie) => movie.mediaType === "tv"),
+      used,
+      generatedAt,
+    ),
+  );
 
   push(
     section(

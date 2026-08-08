@@ -50,6 +50,7 @@ type RankedMovie = Pick<
   | "emotionScores"
   | "voteAverage"
   | "popularity"
+  | "socialSignals"
 >;
 
 export type SearchBatch<T extends RankedMovie> = {
@@ -625,6 +626,7 @@ type ScoreBreakdown = {
   genre: number;
   rating: number;
   popularity: number;
+  social: number;
 };
 
 function scoreBreakdown(movie: RankedMovie, plan: SearchPlan): ScoreBreakdown {
@@ -689,6 +691,9 @@ function scoreBreakdown(movie: RankedMovie, plan: SearchPlan): ScoreBreakdown {
   const popularityScore = moodPriority
     ? Math.log10(Math.max(movie.popularity, 0) + 1) * 0.1
     : Math.log10(Math.max(movie.popularity, 0) + 1) * 0.25;
+  const socialScore = movie.socialSignals
+    ? Math.min(14, Math.max(0, movie.socialSignals.trendScore) * 0.14)
+    : 0;
 
   return {
     title: titleScore,
@@ -696,7 +701,14 @@ function scoreBreakdown(movie: RankedMovie, plan: SearchPlan): ScoreBreakdown {
     genre: genreScore,
     rating: ratingScore,
     popularity: popularityScore,
-    total: titleScore + moodScore + genreScore + ratingScore + popularityScore,
+    social: socialScore,
+    total:
+      titleScore +
+      moodScore +
+      genreScore +
+      ratingScore +
+      popularityScore +
+      socialScore,
   };
 }
 
@@ -745,6 +757,9 @@ export function explainMovieReasons(
     reasons.push(`★${movie.voteAverage.toFixed(1)}`);
 
   if (movie.popularity >= 70 && reasons.length < 3) reasons.push("話題作");
+  if (breakdown.social >= 4 && reasons.length < 3) {
+    reasons.push("TikTokで話題");
+  }
 
   if (
     plan.normalizedQuery &&

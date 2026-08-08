@@ -60,6 +60,30 @@ export function buildSearchRails(
     rails.push(editorialRail);
   }
 
+  const socialTrending = [...pool]
+    .filter((movie) => (movie.socialSignals?.trendScore ?? 0) >= 20)
+    .sort(
+      (a, b) =>
+        (b.socialSignals?.trendScore ?? 0) -
+          (a.socialSignals?.trendScore ?? 0) || a.id.localeCompare(b.id),
+    );
+  const socialMovieRail = takeRail(
+    "tiktok-movies",
+    "TikTokで話題の映画",
+    socialTrending.filter((movie) => movie.mediaType === "movie"),
+    used,
+    { allowReuse: true },
+  );
+  if (socialMovieRail) rails.push(socialMovieRail);
+  const socialDramaRail = takeRail(
+    "tiktok-dramas",
+    "TikTokで話題のドラマ",
+    socialTrending.filter((movie) => movie.mediaType === "tv"),
+    used,
+    { allowReuse: true },
+  );
+  if (socialDramaRail) rails.push(socialDramaRail);
+
   if (plan?.expanded) {
     const moodTitle = plan.labels.find(
       (label) => !/分以内|高評価|おすすめ|邦画|韓国/.test(label),

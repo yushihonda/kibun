@@ -51,6 +51,9 @@ export default function CreditsPage() {
         <p>
           プレーヤー内のロゴ、投稿者名、リンク、標準操作を隠したり変更したりせず、各プラットフォームが提供する状態で表示します。
         </p>
+        <p>
+          TikTokの公開投稿メタデータはサーバー側のデータ提供APIを通じて取得し、公式TikTokページへのリンクとして表示します。口コミの要約と反応傾向にはOpenAIによる構造化分析を使う場合があります。
+        </p>
         <div className="flex gap-4">
           <a
             href="https://www.youtube.com/"
@@ -70,7 +73,7 @@ export default function CreditsPage() {
           </a>
         </div>
       </section>
-      <p className="text-xs">最終確認日: 2026年8月6日</p>
+      <p className="text-xs">最終確認日: 2026年8月8日</p>
     </LegalPage>
   );
 }

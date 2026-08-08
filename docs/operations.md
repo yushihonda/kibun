@@ -14,6 +14,17 @@ GitHub Actionsの `Monthly movie sync` は毎月1日03:00 UTCに実行する。�
 
 AIタグ生成はRepository Variablesの `EMOTION_AI_MAX_MOVIES` と `EMOTION_AI_MAX_COST_USD` の両方が正のときだけ実行する。
 
+## TikTok話題同期
+
+GitHub Actionsの `TikTok movie and drama trends` は毎日02:50 UTCに実行する。映画とドラマを明示的に分けた候補作品について、RapidAPIのキーワード検索から公開投稿メタデータを取得し、反応率・話題度・共起ハッシュタグ・関心テーマ・感情傾向を作品別に更新する。動画ファイルと個々のコメント本文は保存しない。
+
+追加のGitHub Secrets:
+
+- `RAPIDAPI_TIKTOK_KEY`（必須。未設定時は同期を安全にスキップ）
+- `OPENAI_API_KEY`（任意。未設定時は決定的な簡易感情判定へフォールバック）
+
+手動確認は `npm run sync:tiktok` を実行し、`sync_runs.source = 'tiktok_social'`、`movie_social_posts`、`movie_social_signals` の件数と `/admin/operations` を確認する。APIプランに応じて `TIKTOK_SYNC_TITLE_LIMIT`、`TIKTOK_SYNC_POSTS_PER_TITLE`、`TIKTOK_AI_MAX_TITLES` を調整する。
+
 ## 本番デプロイ
 
 GitHub Actionsの `Deploy production` は `main` へのpushと手動実行で起動する。format、lint、typecheck、unit testがすべて通過した後だけ、OpenNextでビルドしてCloudflare Workersの `kibun` へデプロイする。同時デプロイは行わず、先に開始した実行を完了させる。

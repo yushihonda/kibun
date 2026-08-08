@@ -24,6 +24,16 @@ type EventRow = {
 
 async function loadCandidatePool(supabase: SupabaseClient, now: Date) {
   const trendingSince = new Date(now.getTime() - 10 * 86_400_000).toISOString();
+  const { data: socialRows } = await supabase
+    .from("movie_social_signals")
+    .select("movie_id")
+    .gte(
+      "calculated_at",
+      new Date(now.getTime() - 30 * 86_400_000).toISOString(),
+    )
+    .order("trend_score", { ascending: false })
+    .limit(80);
+  const socialMovieIds = (socialRows ?? []).map((row) => String(row.movie_id));
   const groups = await Promise.all([
     loadCatalogMovies(supabase, {
       limit: 240,
@@ -41,6 +51,13 @@ async function loadCandidatePool(supabase: SupabaseClient, now: Date) {
       trendingSince,
       includeRecommendationMetadata: true,
     }),
+    socialMovieIds.length
+      ? loadCatalogMovies(supabase, {
+          limit: socialMovieIds.length,
+          movieIds: socialMovieIds,
+          includeRecommendationMetadata: true,
+        })
+      : Promise.resolve([]),
   ]);
   return [
     ...new Map(

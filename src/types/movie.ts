@@ -1,6 +1,7 @@
 export type OfferType = "flatrate" | "rent" | "buy";
 export type VideoPlatform = "youtube" | "tiktok";
 export type MediaType = "movie" | "tv";
+export type SocialSentiment = "positive" | "mixed" | "negative" | "neutral";
 
 export type Provider = {
   id: number;
@@ -21,6 +22,38 @@ export type MovieVideo = {
   platform: VideoPlatform;
   videoId: string;
   url?: string;
+};
+
+export type SocialPostPreview = {
+  videoId: string;
+  url: string;
+  caption: string;
+  authorUsername?: string;
+  postedAt?: string;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  engagementRate: number;
+  hashtags: string[];
+};
+
+export type MovieSocialSignals = {
+  postCount: number;
+  totalViews: number;
+  totalLikes: number;
+  totalComments: number;
+  totalShares: number;
+  averageEngagementRate: number;
+  trendScore: number;
+  sentiment: SocialSentiment;
+  sentimentScore: number;
+  topHashtags: string[];
+  topics: string[];
+  summary?: string;
+  latestPostAt?: string;
+  updatedAt: string;
+  featuredPosts: SocialPostPreview[];
 };
 
 export type Movie = {
@@ -55,6 +88,7 @@ export type Movie = {
   matchReasons?: string[];
   editorialComment?: string;
   recommendationReason?: string;
+  socialSignals?: MovieSocialSignals;
 };
 
 export type MovieRail = {

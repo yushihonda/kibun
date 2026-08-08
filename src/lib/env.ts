@@ -10,6 +10,9 @@ const schema = z.object({
   TMDB_API_TOKEN: z.string().optional(),
   YOUTUBE_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  RAPIDAPI_TIKTOK_KEY: z.string().optional(),
+  TIKTOK_RAPIDAPI_HOST: z.string().optional(),
+  TIKTOK_RAPIDAPI_ENDPOINT: optionalUrl,
   CRON_SECRET: z.string().optional(),
 });
 
@@ -22,6 +25,9 @@ export const env = schema.parse({
   TMDB_API_TOKEN: process.env.TMDB_API_TOKEN,
   YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  RAPIDAPI_TIKTOK_KEY: process.env.RAPIDAPI_TIKTOK_KEY,
+  TIKTOK_RAPIDAPI_HOST: process.env.TIKTOK_RAPIDAPI_HOST,
+  TIKTOK_RAPIDAPI_ENDPOINT: process.env.TIKTOK_RAPIDAPI_ENDPOINT,
   CRON_SECRET: process.env.CRON_SECRET,
 });
 
