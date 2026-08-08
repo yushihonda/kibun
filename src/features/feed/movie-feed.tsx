@@ -34,6 +34,9 @@ const compactNumber = new Intl.NumberFormat("ja-JP", {
   maximumFractionDigits: 1,
 });
 
+const INITIAL_FEED_ITEMS = 12;
+const FEED_ITEMS_INCREMENT = 12;
+
 function sentimentLabel(
   sentiment: NonNullable<Movie["socialSignals"]>["sentiment"],
 ) {
@@ -688,49 +691,63 @@ export function MovieDetails({
   );
 }
 
-export function MovieFeed({
-  movies,
-  sections,
-}: {
-  movies: Movie[];
-  sections?: MovieRail[];
-}) {
+export function MovieFeed({ sections }: { sections: MovieRail[] }) {
   const router = useRouter();
   const scroller = useRef<HTMLDivElement>(null);
+  const pendingScrollIndex = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(true);
+  const [videoPlaybackEnabled, setVideoPlaybackEnabled] = useState(false);
   const [selected, setSelected] = useState<Movie | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const feedEntries = useMemo(
     () =>
-      sections?.length
-        ? sections.flatMap((rail) =>
-            rail.movies.map((movie, index) => ({
-              movie,
-              sectionId: rail.id,
-              sectionTitle: rail.title,
-              sectionDescription: rail.description,
-              firstInSection: index === 0,
-            })),
-          )
-        : movies.map((movie, index) => ({
-            movie,
-            sectionId: "feed",
-            sectionTitle: "おすすめ",
-            sectionDescription: undefined,
-            firstInSection: index === 0,
-          })),
-    [movies, sections],
+      sections.flatMap((rail) =>
+        rail.movies.map((movie, index) => ({
+          movie,
+          sectionId: rail.id,
+          sectionTitle: rail.title,
+          sectionDescription: rail.description,
+          firstInSection: index === 0,
+        })),
+      ),
+    [sections],
   );
+  const [renderedCount, setRenderedCount] = useState(() =>
+    Math.min(INITIAL_FEED_ITEMS, feedEntries.length),
+  );
+  const renderedEntries = feedEntries.slice(0, renderedCount);
   const activeMediaType = feedEntries[activeIndex]?.movie.mediaType ?? "movie";
 
-  const jumpToMediaType = (mediaType: Movie["mediaType"]) => {
-    const index = feedEntries.findIndex(
-      (entry) => entry.movie.mediaType === mediaType,
-    );
-    if (index < 0) return;
+  const scrollToIndex = (index: number) => {
+    if (index < 0 || index >= feedEntries.length) return;
+    if (index >= renderedCount) {
+      pendingScrollIndex.current = index;
+      setRenderedCount(index + 1);
+      return;
+    }
     scroller.current?.children[index]?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const jumpToMediaType = (mediaType: Movie["mediaType"]) =>
+    scrollToIndex(
+      feedEntries.findIndex((entry) => entry.movie.mediaType === mediaType),
+    );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVideoPlaybackEnabled(true), 1800);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const index = pendingScrollIndex.current;
+    if (index === null || index >= renderedCount) return;
+    pendingScrollIndex.current = null;
+    const frame = window.requestAnimationFrame(() =>
+      scroller.current?.children[index]?.scrollIntoView({ behavior: "smooth" }),
+    );
+    return () => window.cancelAnimationFrame(frame);
+  }, [renderedCount]);
 
   useEffect(() => {
     const entry = feedEntries[activeIndex];
@@ -740,15 +757,18 @@ export function MovieFeed({
       movieId: entry.movie.id,
       sectionId: entry.sectionId,
     });
-    if (entry.movie.video) {
-      trackProductEvent({
-        eventName: "playback_start",
-        movieId: entry.movie.id,
-        sectionId: entry.sectionId,
-        metadata: { platform: entry.movie.video.platform, placement: "feed" },
-      });
-    }
   }, [activeIndex, feedEntries]);
+
+  useEffect(() => {
+    const entry = feedEntries[activeIndex];
+    if (!videoPlaybackEnabled || !entry?.movie.video) return;
+    trackProductEvent({
+      eventName: "playback_start",
+      movieId: entry.movie.id,
+      sectionId: entry.sectionId,
+      metadata: { platform: entry.movie.video.platform, placement: "feed" },
+    });
+  }, [activeIndex, feedEntries, videoPlaybackEnabled]);
 
   useEffect(() => {
     const root = scroller.current;
@@ -770,7 +790,26 @@ export function MovieFeed({
       .querySelectorAll("[data-index]")
       .forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, []);
+  }, [renderedCount]);
+
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root) return;
+    const loadMore = () => {
+      const preloadDistance = root.clientHeight * 3;
+      if (
+        root.scrollTop + root.clientHeight <
+        root.scrollHeight - preloadDistance
+      ) {
+        return;
+      }
+      setRenderedCount((current) =>
+        Math.min(current + FEED_ITEMS_INCREMENT, feedEntries.length),
+      );
+    };
+    root.addEventListener("scroll", loadMore, { passive: true });
+    return () => root.removeEventListener("scroll", loadMore);
+  }, [feedEntries.length]);
 
   const toggleFavorite = async (id: string) => {
     const nextValue = !favorites.has(id);
@@ -828,7 +867,10 @@ export function MovieFeed({
               </Link>
               <button
                 type="button"
-                onClick={() => setMuted((value) => !value)}
+                onClick={() => {
+                  setVideoPlaybackEnabled(true);
+                  setMuted((value) => !value);
+                }}
                 className="rounded-full border border-white/15 bg-black/35 p-2 backdrop-blur-md"
                 aria-label={muted ? "音声をオン" : "ミュート"}
               >
@@ -873,7 +915,7 @@ export function MovieFeed({
         ref={scroller}
         className="h-full snap-y snap-mandatory overflow-y-auto scroll-smooth"
       >
-        {feedEntries.map(
+        {renderedEntries.map(
           (
             {
               movie,
@@ -918,7 +960,7 @@ export function MovieFeed({
                 >
                   <YouTubePlayer
                     videoId={movie.video.videoId}
-                    active={index === activeIndex}
+                    active={videoPlaybackEnabled && index === activeIndex}
                     muted={muted}
                     className="h-full w-full"
                   />
@@ -932,7 +974,7 @@ export function MovieFeed({
                 >
                   <TikTokPlayer
                     videoId={movie.video.videoId}
-                    active={index === activeIndex}
+                    active={videoPlaybackEnabled && index === activeIndex}
                     className="h-full w-full"
                   />
                 </div>
@@ -1089,11 +1131,7 @@ export function MovieFeed({
           <button
             key={`${sectionId}:${movie.id}`}
             type="button"
-            onClick={() =>
-              scroller.current?.children[index]?.scrollIntoView({
-                behavior: "smooth",
-              })
-            }
+            onClick={() => scrollToIndex(index)}
             aria-label={`${index + 1}本目へ`}
             className={`h-5 w-0.5 rounded-full transition ${
               index === activeIndex ? "bg-lime-300" : "bg-white/25"

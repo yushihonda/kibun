@@ -43,6 +43,9 @@ type CatalogRow = {
   providers_checked_at: string | null;
   created_at: string;
   last_synced_at: string | null;
+  movie_videos?: VideoRow[] | null;
+  movie_providers?: ProviderJoinRow[] | null;
+  movie_social_signals?: MovieSocialSignalRow | MovieSocialSignalRow[] | null;
 };
 
 type VideoRow = {
@@ -51,6 +54,7 @@ type VideoRow = {
   video_id: string;
   url: string | null;
   created_at: string;
+  status: string;
 };
 
 type ProviderJoinRow = {
@@ -58,6 +62,7 @@ type ProviderJoinRow = {
   offer_type: OfferType;
   tmdb_link: string | null;
   updated_at: string;
+  country: string;
   providers:
     | {
         tmdb_provider_id: number;
@@ -138,12 +143,16 @@ export async function loadCatalogMovies(
   const recommendationFields = options?.includeRecommendationMetadata
     ? ",emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id"
     : "";
+  const relatedFields =
+    ",movie_videos(movie_id,platform,video_id,url,created_at,status),movie_providers(movie_id,offer_type,tmdb_link,updated_at,country,providers(tmdb_provider_id,name,slug,logo_path)),movie_social_signals(movie_id,post_count,total_views,total_likes,total_comments,total_shares,average_engagement_rate,trend_score,sentiment,sentiment_score,top_hashtags,topics,summary,latest_post_at,featured_posts,calculated_at)";
   let query = supabase
     .from("movies")
     .select(
-      `id,tmdb_id,media_type,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,vote_count,popularity,genres,emotional_tags,sources,trending_at,theatrical_at,providers_checked_at,created_at,last_synced_at${recommendationFields}`,
+      `id,tmdb_id,media_type,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,vote_count,popularity,genres,emotional_tags,sources,trending_at,theatrical_at,providers_checked_at,created_at,last_synced_at${recommendationFields}${relatedFields}`,
     )
     .eq("adult", false)
+    .eq("movie_videos.status", "approved")
+    .eq("movie_providers.country", "JP")
     .order(options?.orderBy ?? "popularity", {
       ascending: false,
       nullsFirst: false,
@@ -161,101 +170,51 @@ export async function loadCatalogMovies(
   if (error) throw error;
   const rows = (data ?? []) as unknown as CatalogRow[];
   if (!rows.length) return [];
-  const ids = rows.map((movie) => movie.id);
-  const idBatches = Array.from(
-    { length: Math.ceil(ids.length / 100) },
-    (_, index) => ids.slice(index * 100, (index + 1) * 100),
-  );
-  const relatedResults = await Promise.all(
-    idBatches.map(async (batch) =>
-      Promise.all([
-        supabase
-          .from("movie_videos")
-          .select("movie_id,platform,video_id,url,created_at")
-          .in("movie_id", batch)
-          .eq("status", "approved"),
-        supabase
-          .from("movie_providers")
-          .select(
-            "movie_id,offer_type,tmdb_link,updated_at,providers(tmdb_provider_id,name,slug,logo_path)",
-          )
-          .in("movie_id", batch)
-          .eq("country", "JP"),
-        supabase
-          .from("movie_social_signals")
-          .select(
-            "movie_id,post_count,total_views,total_likes,total_comments,total_shares,average_engagement_rate,trend_score,sentiment,sentiment_score,top_hashtags,topics,summary,latest_post_at,featured_posts,calculated_at",
-          )
-          .in("movie_id", batch),
-      ]),
-    ),
-  );
-  const videos: unknown[] = [];
-  const providerRows: unknown[] = [];
-  const socialRows: unknown[] = [];
-  for (const [videoResult, providerResult, socialResult] of relatedResults) {
-    if (videoResult.error) throw videoResult.error;
-    if (providerResult.error) throw providerResult.error;
-    if (socialResult.error && socialResult.error.code !== "42P01") {
-      throw socialResult.error;
-    }
-    videos.push(...(videoResult.data ?? []));
-    providerRows.push(...(providerResult.data ?? []));
-    socialRows.push(...(socialResult.data ?? []));
-  }
 
-  const videosByMovie = new Map<string, VideoRow[]>();
-  for (const video of videos as VideoRow[]) {
-    const list = videosByMovie.get(video.movie_id) ?? [];
-    list.push(video);
-    videosByMovie.set(video.movie_id, list);
-  }
-  const providersByMovie = new Map<string, ProviderJoinRow[]>();
-  for (const provider of providerRows as ProviderJoinRow[]) {
-    const list = providersByMovie.get(provider.movie_id) ?? [];
-    list.push(provider);
-    providersByMovie.set(provider.movie_id, list);
-  }
-  const socialByMovie = new Map(
-    (socialRows as MovieSocialSignalRow[]).map((row) => [
-      row.movie_id,
-      mapMovieSocialSignals(row),
-    ]),
-  );
-
-  const mapped = rows.map((row) => ({
-    id: row.id,
-    tmdbId: Number(row.tmdb_id),
-    mediaType: row.media_type,
-    title: row.title,
-    originalTitle: row.original_title ?? undefined,
-    overview: row.overview,
-    posterUrl: image(row.poster_path, "w780"),
-    backdropUrl: image(row.backdrop_path ?? row.poster_path, "w1280"),
-    releaseDate: row.release_date ?? "",
-    runtime: row.runtime ?? 0,
-    voteAverage: Number(row.vote_average),
-    voteCount: row.vote_count,
-    popularity: Number(row.popularity),
-    genres: row.genres ?? [],
-    emotionalTags: row.emotional_tags ?? [],
-    emotionScores: row.emotional_scores ?? undefined,
-    aliases: row.aliases ?? undefined,
-    keywords: row.keywords ?? undefined,
-    originCountries: row.origin_countries ?? undefined,
-    cast: row.tmdb_cast ?? undefined,
-    directors: row.tmdb_directors ?? undefined,
-    collectionId: row.tmdb_collection_id ?? undefined,
-    sources: row.sources ?? undefined,
-    trendingAt: row.trending_at ?? undefined,
-    theatricalAt: row.theatrical_at ?? undefined,
-    providersCheckedAt: row.providers_checked_at ?? undefined,
-    providers: mapProviders(providersByMovie.get(row.id) ?? []),
-    video: chooseVideo(videosByMovie.get(row.id) ?? []),
-    socialSignals: socialByMovie.get(row.id),
-    createdAt: row.created_at,
-    lastSyncedAt: row.last_synced_at ?? undefined,
-  })) satisfies CatalogMovie[];
+  const mapped = rows.map((row) => {
+    const socialRow = Array.isArray(row.movie_social_signals)
+      ? row.movie_social_signals[0]
+      : row.movie_social_signals;
+    return {
+      id: row.id,
+      tmdbId: Number(row.tmdb_id),
+      mediaType: row.media_type,
+      title: row.title,
+      originalTitle: row.original_title ?? undefined,
+      overview: row.overview,
+      posterUrl: image(row.poster_path, "w780"),
+      backdropUrl: image(row.backdrop_path ?? row.poster_path, "w1280"),
+      releaseDate: row.release_date ?? "",
+      runtime: row.runtime ?? 0,
+      voteAverage: Number(row.vote_average),
+      voteCount: row.vote_count,
+      popularity: Number(row.popularity),
+      genres: row.genres ?? [],
+      emotionalTags: row.emotional_tags ?? [],
+      emotionScores: row.emotional_scores ?? undefined,
+      aliases: row.aliases ?? undefined,
+      keywords: row.keywords ?? undefined,
+      originCountries: row.origin_countries ?? undefined,
+      cast: row.tmdb_cast ?? undefined,
+      directors: row.tmdb_directors ?? undefined,
+      collectionId: row.tmdb_collection_id ?? undefined,
+      sources: row.sources ?? undefined,
+      trendingAt: row.trending_at ?? undefined,
+      theatricalAt: row.theatrical_at ?? undefined,
+      providersCheckedAt: row.providers_checked_at ?? undefined,
+      providers: mapProviders(
+        (row.movie_providers ?? []).filter(
+          (provider) => provider.country === "JP",
+        ),
+      ),
+      video: chooseVideo(
+        (row.movie_videos ?? []).filter((video) => video.status === "approved"),
+      ),
+      socialSignals: socialRow ? mapMovieSocialSignals(socialRow) : undefined,
+      createdAt: row.created_at,
+      lastSyncedAt: row.last_synced_at ?? undefined,
+    };
+  }) satisfies CatalogMovie[];
 
   return options?.requireVideo
     ? mapped.filter((movie) => Boolean(movie.video))

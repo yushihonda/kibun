@@ -1,6 +1,6 @@
 import { demoMovies } from "@/data/demo-movies";
 import { MovieFeed } from "@/features/feed/movie-feed";
-import { loadHomeFeed } from "@/lib/movies/home-feed";
+import { loadRequestHomeFeed } from "@/lib/movies/public-home-feed";
 import { createClient } from "@/lib/supabase/server";
 import type { MovieRail } from "@/types/movie";
 
@@ -25,26 +25,16 @@ export default async function Home() {
   const supabase = await createClient();
   if (!supabase) {
     const sections = demoSections();
-    return (
-      <MovieFeed
-        movies={sections.flatMap((section) => section.movies)}
-        sections={sections}
-      />
-    );
+    return <MovieFeed sections={sections} />;
   }
 
   let sections: MovieRail[];
   try {
-    sections = (await loadHomeFeed(supabase)).sections;
+    sections = (await loadRequestHomeFeed(supabase)).sections;
     if (!sections.length) sections = demoSections();
   } catch (error) {
     console.error("Dynamic home feed failed", error);
     sections = demoSections();
   }
-  return (
-    <MovieFeed
-      movies={sections.flatMap((section) => section.movies)}
-      sections={sections}
-    />
-  );
+  return <MovieFeed sections={sections} />;
 }
