@@ -4,7 +4,10 @@ import {
   socialTrendBoost,
   weightedRating,
 } from "@/lib/discovery/ranking";
-import type { SearchPlan } from "@/lib/search/query-intent";
+import {
+  type SearchPlan,
+  violatesStrictAvoidance,
+} from "@/lib/search/query-intent";
 import type { Movie, MovieRail } from "@/types/movie";
 
 const MAX_PER_RAIL = 18;
@@ -47,12 +50,18 @@ export function buildSearchRails(
 ): MovieRail[] {
   const rails: MovieRail[] = [];
   const used = new Set<string>();
-  const pool = uniqueById(movies);
+  const pool = uniqueById(movies).filter(
+    (movie) => !plan || !violatesStrictAvoidance(movie, plan),
+  );
   const emptyQuery = options?.emptyQuery ?? false;
   const now = options?.now ?? new Date();
+  const hasQuery = Boolean(plan?.originalQuery);
+  const poolIds = new Set(pool.map((movie) => movie.id));
 
   const editorialSource = options?.editorialMovies?.length
-    ? uniqueById(options.editorialMovies)
+    ? uniqueById(options.editorialMovies).filter((movie) =>
+        poolIds.has(movie.id),
+      )
     : pool.filter((movie) => Boolean(movie.editorialComment));
   const editorialRail = takeRail(
     "editorial",
@@ -60,12 +69,47 @@ export function buildSearchRails(
     editorialSource,
     used,
   );
-  if (editorialRail) {
+  if (editorialRail && !hasQuery) {
     rails.push(editorialRail);
   }
 
+  let intentMatches: Movie[] | null = null;
+  if (hasQuery && plan) {
+    const moodTitle = plan.labels.find(
+      (label) => !/分以内|高評価|おすすめ|邦画|韓国/.test(label),
+    );
+    const matchedMovies = plan.expanded
+      ? pool.filter(
+          (movie) =>
+            movie.matchReasons?.some(
+              (reason) => reason.includes("気分") || reason === moodTitle,
+            ) ||
+            movie.emotionalTags.some((tag) =>
+              plan.preferredEmotionalTags.some((preferred) =>
+                tag.includes(preferred),
+              ),
+            ) ||
+            movie.genres.some(
+              (genre) => (plan.preferredGenres[genre] ?? 0) >= 2,
+            ),
+        )
+      : pool;
+    intentMatches = matchedMovies.length ? matchedMovies : pool;
+    const intentRail = takeRail(
+      plan.expanded ? "mood" : "matches",
+      moodTitle ? `この気分に近い · ${moodTitle}` : "検索に近い作品",
+      intentMatches,
+      used,
+    );
+    if (intentRail) rails.push(intentRail);
+  }
+
+  const intentMatchIds = intentMatches
+    ? new Set(intentMatches.map((movie) => movie.id))
+    : null;
   const socialTrending = [...pool]
     .filter((movie) => isFreshSocialTrend(movie, now))
+    .filter((movie) => !intentMatchIds || intentMatchIds.has(movie.id))
     .sort(
       (a, b) =>
         socialTrendBoost(b, now) - socialTrendBoost(a, now) ||
@@ -87,33 +131,6 @@ export function buildSearchRails(
     { allowReuse: true },
   );
   if (socialDramaRail) rails.push(socialDramaRail);
-
-  if (plan?.expanded) {
-    const moodTitle = plan.labels.find(
-      (label) => !/分以内|高評価|おすすめ|邦画|韓国/.test(label),
-    );
-    if (moodTitle) {
-      const moodMovies = pool.filter(
-        (movie) =>
-          movie.matchReasons?.some(
-            (reason) => reason.includes("気分") || reason === moodTitle,
-          ) ||
-          movie.emotionalTags.some((tag) =>
-            plan.preferredEmotionalTags.some((preferred) =>
-              tag.includes(preferred),
-            ),
-          ) ||
-          movie.genres.some((genre) => (plan.preferredGenres[genre] ?? 0) >= 2),
-      );
-      const moodRail = takeRail(
-        "mood",
-        `この気分に近い · ${moodTitle}`,
-        moodMovies.length ? moodMovies : pool,
-        used,
-      );
-      if (moodRail) rails.push(moodRail);
-    }
-  }
 
   const movieRail = takeRail(
     "movies",

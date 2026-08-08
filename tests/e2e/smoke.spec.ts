@@ -91,6 +91,38 @@ test("feed and search are reachable", async ({ page, request }) => {
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 
+  const safeQuery = "疲れたから癒やされたい。怖くないもの";
+  await searchInput.fill(safeQuery);
+  await expect(
+    page.getByRole("heading", {
+      name: `「${safeQuery}」に近い作品`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.locator("main").getByRole("region").first(),
+  ).toHaveAccessibleName(/この気分に近い/);
+
+  const safeResponse = await page.request.get(
+    `/api/search?q=${encodeURIComponent(safeQuery)}&limit=48`,
+  );
+  expect(safeResponse.ok()).toBe(true);
+  const safeBody = (await safeResponse.json()) as {
+    hits: Array<{ genres: string[]; emotionalTags: string[] }>;
+  };
+  expect(safeBody.hits.length).toBeGreaterThan(0);
+  expect(
+    safeBody.hits.some(
+      (movie) =>
+        movie.genres.some((genre) => ["ホラー", "スリラー"].includes(genre)) ||
+        movie.emotionalTags.some((tag) =>
+          ["怖い", "不穏", "ゾッとする", "残酷", "グロい"].some((avoided) =>
+            tag.includes(avoided),
+          ),
+        ),
+    ),
+  ).toBe(false);
+
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth + 1,

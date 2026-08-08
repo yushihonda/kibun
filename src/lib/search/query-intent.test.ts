@@ -117,6 +117,7 @@ describe("analyzeSearchQuery", () => {
     expect(plan.labels).not.toContain("怖い・不穏");
     expect(plan.avoidedGenres["ホラー"]).toBeGreaterThan(0);
     expect(plan.preferredGenres["ホラー"]).toBeUndefined();
+    expect(plan.strictAvoidedGenres).toEqual(["ホラー", "スリラー"]);
   });
 });
 
@@ -139,7 +140,7 @@ describe("rankSearchBatches", () => {
     ).toEqual(["exact", "popular"]);
   });
 
-  it("promotes matching moods and demotes explicitly avoided genres", () => {
+  it("removes explicitly avoided genres from safe-viewing results", () => {
     const plan = analyzeSearchQuery("疲れたから癒やされたい。怖くないもの");
     const gentle = movie({
       id: "gentle",
@@ -161,7 +162,7 @@ describe("rankSearchBatches", () => {
         [{ query: plan.queries[0], movies: [horror, gentle] }],
         plan,
       ).map(({ id }) => id),
-    ).toEqual(["gentle", "horror"]);
+    ).toEqual(["gentle"]);
   });
 
   it("prefers emotional-tag matches over raw popularity for mood queries", () => {
