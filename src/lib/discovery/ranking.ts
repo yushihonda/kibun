@@ -2,6 +2,7 @@ import type { Movie } from "@/types/movie";
 
 const DAY_MS = 86_400_000;
 const RATING_PRIOR = 6.5;
+export const SOCIAL_TREND_MAX_AGE_DAYS = 30;
 
 function dateValue(value?: string): number | null {
   if (!value) return null;
@@ -98,14 +99,29 @@ export function discoveryScore(movie: Movie, now = new Date()): number {
   );
 }
 
-export function socialTrendBoost(movie: Movie, now = new Date()): number {
+export function socialTrendBoost(
+  movie: Pick<Movie, "socialSignals">,
+  now = new Date(),
+): number {
   const social = movie.socialSignals;
   if (!social || social.postCount <= 0) return 0;
-  const updatedAt = dateValue(social.updatedAt);
-  if (updatedAt === null) return 0;
-  const ageDays = Math.max(0, now.getTime() - updatedAt) / DAY_MS;
+  const signalAt = dateValue(social.latestPostAt);
+  if (signalAt === null) return 0;
+  const ageDays = (now.getTime() - signalAt) / DAY_MS;
+  if (ageDays < -1 || ageDays > SOCIAL_TREND_MAX_AGE_DAYS) return 0;
   const freshness = Math.exp(-ageDays / 21);
   return Math.min(24, Math.max(0, social.trendScore) * 0.22) * freshness;
+}
+
+export function isFreshSocialTrend(
+  movie: Pick<Movie, "socialSignals">,
+  now = new Date(),
+): boolean {
+  return (
+    (movie.socialSignals?.postCount ?? 0) >= 1 &&
+    (movie.socialSignals?.trendScore ?? 0) >= 20 &&
+    socialTrendBoost(movie, now) > 0
+  );
 }
 
 export function trendScore(movie: Movie, now = new Date()): number {

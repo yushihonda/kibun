@@ -5,10 +5,12 @@ import {
   discoveryScore,
   evergreenScore,
   isEvergreenTitle,
+  isFreshSocialTrend,
   isFreshTrend,
   isNowPlayingTitle,
   isRecentTitle,
   recentScore,
+  socialTrendBoost,
   theatricalScore,
   trendScore,
 } from "@/lib/discovery/ranking";
@@ -43,10 +45,16 @@ function section(
   candidates: Movie[],
   used: Set<string>,
   generatedAt: string,
+  options?: { allowReuse?: boolean },
 ): MovieRail | null {
-  const movies = candidates.filter((movie) => !used.has(movie.id)).slice(0, 8);
+  const allowReuse = options?.allowReuse ?? false;
+  const movies = candidates
+    .filter((movie) => allowReuse || !used.has(movie.id))
+    .slice(0, 8);
   if (!movies.length) return null;
-  for (const movie of movies) used.add(movie.id);
+  if (!allowReuse) {
+    for (const movie of movies) used.add(movie.id);
+  }
   return { id, title, description, movies, generatedAt };
 }
 
@@ -212,12 +220,8 @@ export async function loadHomeFeed(
   }
 
   const socialCandidates = stableSort(
-    enrichedPool.filter(
-      (movie) =>
-        (movie.socialSignals?.postCount ?? 0) >= 1 &&
-        (movie.socialSignals?.trendScore ?? 0) >= 20,
-    ),
-    (movie) => movie.socialSignals?.trendScore ?? 0,
+    enrichedPool.filter((movie) => isFreshSocialTrend(movie, now)),
+    (movie) => socialTrendBoost(movie, now),
   );
   push(
     section(
@@ -227,6 +231,7 @@ export async function loadHomeFeed(
       socialCandidates.filter((movie) => movie.mediaType === "movie"),
       used,
       generatedAt,
+      { allowReuse: true },
     ),
   );
   push(
@@ -237,6 +242,7 @@ export async function loadHomeFeed(
       socialCandidates.filter((movie) => movie.mediaType === "tv"),
       used,
       generatedAt,
+      { allowReuse: true },
     ),
   );
 
@@ -251,6 +257,7 @@ export async function loadHomeFeed(
       ),
       used,
       generatedAt,
+      { allowReuse: true },
     ),
   );
   push(
@@ -266,6 +273,7 @@ export async function loadHomeFeed(
       ),
       used,
       generatedAt,
+      { allowReuse: true },
     ),
   );
   push(
@@ -281,6 +289,7 @@ export async function loadHomeFeed(
       ),
       used,
       generatedAt,
+      { allowReuse: true },
     ),
   );
   push(

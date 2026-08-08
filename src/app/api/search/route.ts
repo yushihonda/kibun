@@ -14,6 +14,7 @@ import {
   type PlannedQuery,
   type SearchBatch,
 } from "@/lib/search/query-intent";
+import { loadSearchPersonalization } from "@/lib/search/personalization";
 import { createClient } from "@/lib/supabase/server";
 import { withinRateLimit } from "@/lib/rate-limit";
 import {
@@ -34,8 +35,7 @@ function withReasons(movies: Movie[], planExpanded: boolean) {
   return movies.map((movie) => ({
     ...movie,
     matchReasons:
-      planExpanded ||
-      movie.matchReasons?.some((reason) => reason.startsWith("TikTok"))
+      planExpanded || (movie.matchReasons?.length ?? 0) > 0
         ? (movie.matchReasons ?? [])
         : undefined,
   }));
@@ -216,6 +216,9 @@ export async function GET(request: NextRequest) {
     : Promise.resolve(
         demoMovies.filter((movie) => movie.editorialComment) as Movie[],
       );
+  const personalizationPromise = supabase
+    ? loadSearchPersonalization(supabase).catch(() => null)
+    : Promise.resolve(null);
 
   if (supabase) {
     const searchPromise = (async () => {
@@ -256,9 +259,10 @@ export async function GET(request: NextRequest) {
       }
       return responses;
     })();
-    const [responses, editorial] = await Promise.all([
+    const [responses, editorial, personalization] = await Promise.all([
       searchPromise,
       editorialPromise,
+      personalizationPromise,
     ]);
     const batches: SearchBatch<Movie>[] = [];
 
@@ -286,12 +290,14 @@ export async function GET(request: NextRequest) {
 
     if (batches.length) {
       const hydratedBatches = await hydrateSearchMetadata(supabase, batches);
-      const ranked = rankSearchBatchesWithScores(hydratedBatches, plan).map(
-        ({ movie, reasons }) => ({
-          ...movie,
-          matchReasons: reasons,
-        }),
-      );
+      const ranked = rankSearchBatchesWithScores(
+        hydratedBatches,
+        plan,
+        personalization,
+      ).map(({ movie, reasons }) => ({
+        ...movie,
+        matchReasons: reasons,
+      }));
       const page = ranked.slice(filters.offset, filters.offset + filters.limit);
       const hits = attachEditorialComments(page, editorial);
       const rails = buildSearchRails(hits, plan, {

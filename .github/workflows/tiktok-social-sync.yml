@@ -2,7 +2,7 @@ name: TikTok movie and drama trends
 
 on:
   schedule:
-    # 31 runs/month * up to 3 pages = 93 requests on the Basic plan.
+    # 31 runs/month * 3 titles * 1 page = 93 requests on the Basic plan.
     - cron: "50 2 * * *"
   workflow_dispatch:
     inputs:
@@ -13,12 +13,12 @@ on:
       title_limit:
         description: "Number of titles to sync"
         required: true
-        default: "1"
+        default: "3"
         type: string
       posts_per_title:
         description: "Maximum posts per title (up to 30 on TokApi)"
         required: true
-        default: "30"
+        default: "10"
         type: string
       keyword_override:
         description: "Optional provider diagnostic keyword"
@@ -45,10 +45,10 @@ jobs:
       TIKTOK_RAPIDAPI_PROVIDER: tokapi-mobile
       TIKTOK_RAPIDAPI_HOST: tokapi-mobile-version.p.rapidapi.com
       TIKTOK_RAPIDAPI_ENDPOINT: https://tokapi-mobile-version.p.rapidapi.com/v1/search/post
-      TIKTOK_SYNC_TITLE_LIMIT: ${{ inputs.title_limit || '1' }}
-      TIKTOK_SYNC_CANDIDATE_POOL_LIMIT: "20"
-      TIKTOK_SYNC_ROTATION_INTERVAL_DAYS: "1"
-      TIKTOK_SYNC_POSTS_PER_TITLE: ${{ inputs.posts_per_title || '30' }}
+      TIKTOK_SYNC_TITLE_LIMIT: ${{ inputs.title_limit || '3' }}
+      TIKTOK_SYNC_CANDIDATE_POOL_LIMIT: "90"
+      TIKTOK_SYNC_POSTS_PER_TITLE: ${{ inputs.posts_per_title || '10' }}
+      TIKTOK_SYNC_MAX_PAGES_PER_TITLE: "1"
       TIKTOK_SYNC_MOVIE_IDS: ${{ inputs.movie_ids || '' }}
       TIKTOK_SYNC_KEYWORD_OVERRIDE: ${{ inputs.keyword_override || '' }}
       TIKTOK_SYNC_MIN_VIEWS: "500"

@@ -1,5 +1,45 @@
 const DAY_MS = 86_400_000;
 
+export function prioritizeLeastRecentlyRefreshed<T extends { id: string }>(
+  candidates: T[],
+  refreshedAt: ReadonlyMap<string, number>,
+  priorityScore: (candidate: T) => number,
+): T[] {
+  return [...candidates].sort(
+    (a, b) =>
+      (refreshedAt.get(a.id) ?? 0) - (refreshedAt.get(b.id) ?? 0) ||
+      priorityScore(b) - priorityScore(a) ||
+      a.id.localeCompare(b.id),
+  );
+}
+
+export function selectBalancedMediaCandidates<
+  T extends { id: string; media_type: "movie" | "tv" },
+>(candidates: T[], count: number): T[] {
+  const targetCount = Math.min(
+    candidates.length,
+    Math.max(0, Math.floor(count)),
+  );
+  if (targetCount <= 1) return candidates.slice(0, targetCount);
+  const selected: T[] = [];
+  const selectedIds = new Set<string>();
+  for (const mediaType of ["movie", "tv"] as const) {
+    const candidate = candidates.find(
+      (item) => item.media_type === mediaType && !selectedIds.has(item.id),
+    );
+    if (!candidate) continue;
+    selected.push(candidate);
+    selectedIds.add(candidate.id);
+  }
+  for (const candidate of candidates) {
+    if (selected.length >= targetCount) break;
+    if (selectedIds.has(candidate.id)) continue;
+    selected.push(candidate);
+    selectedIds.add(candidate.id);
+  }
+  return selected;
+}
+
 export function selectRotatingCandidates<T>(
   candidates: T[],
   count: number,

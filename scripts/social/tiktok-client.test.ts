@@ -224,6 +224,40 @@ describe("TikTok RapidAPI adapter", () => {
     expect(secondUrl.searchParams.get("offset")).toBe("5");
   });
 
+  it("honors the request budget even when the provider has another page", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          has_more: 1,
+          cursor: 1,
+          aweme_list: [
+            {
+              aweme_id: "7212345678901234567",
+              desc: "作品名の感想",
+              author: { unique_id: "fan" },
+              statistics: { play_count: 5_000 },
+            },
+          ],
+          status_code: 0,
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = new TikTokRapidApiClient({
+      apiKey: "secret",
+      fetchImpl,
+    });
+
+    const posts = await client.search("作品名", {
+      region: "JP",
+      count: 10,
+      maxPages: 1,
+    });
+
+    expect(posts).toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("retains tiktok-api23 keyword and page pagination when configured", async () => {
     const item = (id: number) => ({
       id: String(700_000_000 + id),

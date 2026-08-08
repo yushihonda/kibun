@@ -3,6 +3,7 @@ import {
   findSocialSignalMatch,
   socialSignalMatchReason,
 } from "@/lib/search/social-signal-match";
+import { isFreshSocialTrend, socialTrendBoost } from "@/lib/discovery/ranking";
 
 type IntentProfile = {
   id: string;
@@ -41,6 +42,11 @@ export type SearchPlan = {
 export type SearchReason = {
   label: string;
   kind: "mood" | "genre" | "rating" | "popularity" | "title" | "tag";
+};
+
+export type SearchPersonalization = {
+  preferredGenres: string[];
+  preferredEmotionalTags: string[];
 };
 
 type RankedMovie = Pick<
@@ -695,9 +701,7 @@ function scoreBreakdown(movie: RankedMovie, plan: SearchPlan): ScoreBreakdown {
   const popularityScore = moodPriority
     ? Math.log10(Math.max(movie.popularity, 0) + 1) * 0.1
     : Math.log10(Math.max(movie.popularity, 0) + 1) * 0.25;
-  const socialTrendScore = movie.socialSignals
-    ? Math.min(14, Math.max(0, movie.socialSignals.trendScore) * 0.14)
-    : 0;
+  const socialTrendScore = Math.min(14, socialTrendBoost(movie) * 0.65);
   const socialMatch = findSocialSignalMatch(
     plan.originalQuery,
     movie.socialSignals,
@@ -722,6 +726,62 @@ function scoreBreakdown(movie: RankedMovie, plan: SearchPlan): ScoreBreakdown {
       popularityScore +
       socialScore,
   };
+}
+
+function personalizationBreakdown(
+  movie: RankedMovie,
+  plan: SearchPlan,
+  personalization?: SearchPersonalization | null,
+): { score: number; reason?: string } {
+  if (!personalization) return { score: 0 };
+  if (movie.genres.some((genre) => (plan.avoidedGenres[genre] ?? 0) > 0)) {
+    return { score: 0 };
+  }
+  const preferredGenres = new Set(
+    personalization.preferredGenres.map(normalize),
+  );
+  const matchedGenre = movie.genres.find(
+    (genre) =>
+      preferredGenres.has(normalize(genre)) &&
+      (plan.avoidedGenres[genre] ?? 0) <= 0,
+  );
+  const matchedEmotion = movie.emotionalTags.find((tag) =>
+    personalization.preferredEmotionalTags.some((preferred) => {
+      const normalizedTag = normalize(tag);
+      const normalizedPreferred = normalize(preferred);
+      return (
+        normalizedTag.includes(normalizedPreferred) ||
+        normalizedPreferred.includes(normalizedTag)
+      );
+    }),
+  );
+  const genreScore = Math.min(
+    4,
+    movie.genres.filter(
+      (genre) =>
+        preferredGenres.has(normalize(genre)) &&
+        (plan.avoidedGenres[genre] ?? 0) <= 0,
+    ).length * 2,
+  );
+  const emotionScore = Math.min(
+    4,
+    movie.emotionalTags.filter((tag) =>
+      personalization.preferredEmotionalTags.some((preferred) => {
+        const normalizedTag = normalize(tag);
+        const normalizedPreferred = normalize(preferred);
+        return (
+          normalizedTag.includes(normalizedPreferred) ||
+          normalizedPreferred.includes(normalizedTag)
+        );
+      }),
+    ).length * 2,
+  );
+  const reason = matchedEmotion
+    ? `好みの「${matchedEmotion}」に近い`
+    : matchedGenre
+      ? `好みの${matchedGenre}に近い`
+      : undefined;
+  return { score: Math.min(8, genreScore + emotionScore), reason };
 }
 
 export function explainMovieReasons(
@@ -774,7 +834,11 @@ export function explainMovieReasons(
     reasons.push(`★${movie.voteAverage.toFixed(1)}`);
 
   if (movie.popularity >= 70 && reasons.length < 3) reasons.push("話題作");
-  if (breakdown.social >= 4 && reasons.length < 3) {
+  if (
+    isFreshSocialTrend(movie) &&
+    breakdown.social >= 4 &&
+    reasons.length < 3
+  ) {
     reasons.push("TikTokで話題");
   }
 
@@ -792,6 +856,7 @@ export function explainMovieReasons(
 export function rankSearchBatchesWithScores<T extends RankedMovie>(
   batches: readonly SearchBatch<T>[],
   plan: SearchPlan,
+  personalization?: SearchPersonalization | null,
 ): Array<{ movie: T; score: number; reasons: string[] }> {
   const merged = new Map<string, { movie: T; retrievalScore: number }>();
 
@@ -806,10 +871,19 @@ export function rankSearchBatchesWithScores<T extends RankedMovie>(
   return [...merged.values()]
     .map(({ movie, retrievalScore }) => {
       const semantic = scoreBreakdown(movie, plan);
+      const personalized = personalizationBreakdown(
+        movie,
+        plan,
+        personalization,
+      );
+      const reasons = explainMovieReasons(movie, plan);
+      if (personalized.reason && reasons.length < 3) {
+        reasons.push(personalized.reason);
+      }
       return {
         movie,
-        score: retrievalScore + semantic.total,
-        reasons: explainMovieReasons(movie, plan),
+        score: retrievalScore + semantic.total + personalized.score,
+        reasons,
       };
     })
     .sort(
@@ -824,6 +898,9 @@ export function rankSearchBatchesWithScores<T extends RankedMovie>(
 export function rankSearchBatches<T extends RankedMovie>(
   batches: readonly SearchBatch<T>[],
   plan: SearchPlan,
+  personalization?: SearchPersonalization | null,
 ): T[] {
-  return rankSearchBatchesWithScores(batches, plan).map(({ movie }) => movie);
+  return rankSearchBatchesWithScores(batches, plan, personalization).map(
+    ({ movie }) => movie,
+  );
 }

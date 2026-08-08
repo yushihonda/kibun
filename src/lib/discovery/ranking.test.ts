@@ -4,6 +4,7 @@ import {
   discoveryScore,
   isEvergreenTitle,
   isFreshTrend,
+  isFreshSocialTrend,
   isHighConfidenceRating,
   isNowPlayingTitle,
   isRecentTitle,
@@ -108,12 +109,17 @@ describe("discovery ranking", () => {
       sentimentScore: 0.8,
       topHashtags: ["考察"],
       topics: ["ネタバレ考察"],
+      latestPostAt: "2026-08-06T00:00:00Z",
       updatedAt: "2026-08-06T00:00:00Z",
       featuredPosts: [],
     };
     const trending = title({ socialSignals });
     const stale = title({
-      socialSignals: { ...socialSignals, updatedAt: "2025-08-06T00:00:00Z" },
+      socialSignals: {
+        ...socialSignals,
+        latestPostAt: "2025-08-06T00:00:00Z",
+        updatedAt: "2025-08-06T00:00:00Z",
+      },
     });
 
     expect(socialTrendBoost(trending, now)).toBeGreaterThan(15);
@@ -121,5 +127,32 @@ describe("discovery ranking", () => {
     expect(discoveryScore(trending, now)).toBeGreaterThan(
       discoveryScore(title(), now),
     );
+  });
+
+  it("uses the latest post time and cannot refresh stale posts by recalculating", () => {
+    const socialSignals = {
+      postCount: 8,
+      totalViews: 500_000,
+      totalLikes: 50_000,
+      totalComments: 2_000,
+      totalShares: 1_000,
+      averageEngagementRate: 10.6,
+      trendScore: 90,
+      sentiment: "positive" as const,
+      sentimentScore: 0.8,
+      topHashtags: ["考察"],
+      topics: ["ネタバレ考察"],
+      latestPostAt: "2026-06-01T00:00:00Z",
+      updatedAt: "2026-08-06T00:00:00Z",
+      featuredPosts: [],
+    };
+    const recalculated = title({ socialSignals });
+    const unknownPostDate = title({
+      socialSignals: { ...socialSignals, latestPostAt: undefined },
+    });
+
+    expect(isFreshSocialTrend(recalculated, now)).toBe(false);
+    expect(socialTrendBoost(recalculated, now)).toBe(0);
+    expect(isFreshSocialTrend(unknownPostDate, now)).toBe(false);
   });
 });
