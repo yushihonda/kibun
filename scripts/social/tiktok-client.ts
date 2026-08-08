@@ -149,9 +149,9 @@ function extractItems(payload: unknown): unknown[] {
     ["item_list"],
     ["itemList"],
     ["videoList"],
-    ["aweme_list"],
     ["search_item_list"],
     ["data", "search_item_list"],
+    ["aweme_list"],
   ];
   return arrayAt(payload, candidates).map(
     (item) =>

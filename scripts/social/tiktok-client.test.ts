@@ -65,6 +65,7 @@ describe("TikTok RapidAPI adapter", () => {
 
   it("normalizes the TokApi mobile search response", () => {
     const posts = parseTikTokSearchResponse({
+      aweme_list: [],
       search_item_list: [
         {
           aweme_info: {
