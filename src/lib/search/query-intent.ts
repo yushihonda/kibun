@@ -1,4 +1,8 @@
 import type { Movie } from "@/types/movie";
+import {
+  findSocialSignalMatch,
+  socialSignalMatchReason,
+} from "@/lib/search/social-signal-match";
 
 type IntentProfile = {
   id: string;
@@ -691,9 +695,17 @@ function scoreBreakdown(movie: RankedMovie, plan: SearchPlan): ScoreBreakdown {
   const popularityScore = moodPriority
     ? Math.log10(Math.max(movie.popularity, 0) + 1) * 0.1
     : Math.log10(Math.max(movie.popularity, 0) + 1) * 0.25;
-  const socialScore = movie.socialSignals
+  const socialTrendScore = movie.socialSignals
     ? Math.min(14, Math.max(0, movie.socialSignals.trendScore) * 0.14)
     : 0;
+  const socialMatch = findSocialSignalMatch(
+    plan.originalQuery,
+    movie.socialSignals,
+  );
+  const socialScore = Math.min(
+    34,
+    socialTrendScore + (socialMatch?.score ?? 0) * 20,
+  );
 
   return {
     title: titleScore,
@@ -716,7 +728,11 @@ export function explainMovieReasons(
   movie: RankedMovie,
   plan: SearchPlan,
 ): string[] {
-  if (!plan.expanded) return [];
+  const socialMatch = findSocialSignalMatch(
+    plan.originalQuery,
+    movie.socialSignals,
+  );
+  if (!plan.expanded && !socialMatch) return [];
 
   const reasons: string[] = [];
   const breakdown = scoreBreakdown(movie, plan);
@@ -726,6 +742,7 @@ export function explainMovieReasons(
 
   if (breakdown.title >= 120) reasons.push("タイトル一致");
   else if (breakdown.title >= 45) reasons.push("タイトルに近い");
+  if (socialMatch) reasons.push(socialSignalMatchReason(socialMatch));
 
   const matchedTags = movie.emotionalTags.filter((tag) => {
     const normalizedTag = normalize(tag);

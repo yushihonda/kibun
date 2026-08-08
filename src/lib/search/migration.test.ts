@@ -38,6 +38,13 @@ const movieAndTvSql = readFileSync(
   resolve(process.cwd(), "supabase/migrations/202608070006_movie_and_tv.sql"),
   "utf8",
 ).toLowerCase();
+const tiktokFuzzySearchSql = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/202608080003_tiktok_fuzzy_search.sql",
+  ),
+  "utf8",
+).toLowerCase();
 
 describe("initial Supabase migration", () => {
   it("enables local Japanese and fuzzy search extensions", () => {
@@ -150,5 +157,40 @@ describe("movie and TV catalog migration", () => {
   it("looks up provider updates with the composite TMDB identity", () => {
     expect(movieAndTvSql).toContain("p_media_type text default 'movie'");
     expect(movieAndTvSql).toContain("and media_type = p_media_type");
+  });
+});
+
+describe("TikTok fuzzy search migration", () => {
+  it("uses only fresh aggregate hashtag and topic signals as candidates", () => {
+    expect(tiktokFuzzySearchSql).toContain(
+      "from public.movie_social_signals ms",
+    );
+    expect(tiktokFuzzySearchSql).toContain("unnest(ms.top_hashtags)");
+    expect(tiktokFuzzySearchSql).toContain("unnest(ms.topics)");
+    expect(tiktokFuzzySearchSql).toContain("interval '120 days'");
+    expect(tiktokFuzzySearchSql).not.toContain("movie_social_posts");
+  });
+
+  it("supports exact, containment and capped trigram matching", () => {
+    expect(tiktokFuzzySearchSql).toContain(
+      "normalized.normalized_term = s.normalized_query",
+    );
+    expect(tiktokFuzzySearchSql).toContain(
+      "similarity(normalized.normalized_term, s.normalized_query) >= 0.40",
+    );
+    expect(tiktokFuzzySearchSql).toContain("coalesce(sm.match_score, 0)");
+    expect(tiktokFuzzySearchSql).toContain("or sm.movie_id is not null");
+  });
+
+  it("blocks generic social tags from expanding search", () => {
+    for (const tag of ["'fyp'", "'おすすめ'", "'映画'", "'ドラマ'"]) {
+      expect(tiktokFuzzySearchSql).toContain(tag);
+    }
+  });
+
+  it("preserves media, provider and watched filters", () => {
+    expect(tiktokFuzzySearchSql).toContain("m.media_type = any(s.media_types)");
+    expect(tiktokFuzzySearchSql).toContain("pr.slug = any(s.provider_slugs)");
+    expect(tiktokFuzzySearchSql).toContain("umi.status = 'watched'");
   });
 });
