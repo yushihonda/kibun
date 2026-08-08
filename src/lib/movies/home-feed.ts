@@ -128,21 +128,12 @@ export async function loadHomeFeed(
   const socialMovieIds = (socialResult.data ?? []).map((row) =>
     String(row.movie_id),
   );
-  const [socialPool, watchedResult] = await Promise.all([
-    socialMovieIds.length
-      ? loadCatalogMovies(supabase, {
-          limit: socialMovieIds.length,
-          movieIds: socialMovieIds,
-        })
-      : Promise.resolve([]),
-    user
-      ? supabase
-          .from("user_movie_interactions")
-          .select("movie_id")
-          .eq("user_id", user.id)
-          .eq("status", "WATCHED")
-      : Promise.resolve({ data: [] }),
-  ]);
+  const socialPool = socialMovieIds.length
+    ? await loadCatalogMovies(supabase, {
+        limit: socialMovieIds.length,
+        movieIds: socialMovieIds,
+      })
+    : [];
   const pool = uniqueMovies([
     socialPool,
     theatricalPool,
@@ -151,8 +142,13 @@ export async function loadHomeFeed(
     provenPool,
   ]);
   const watchedIds = new Set<string>();
-  for (const row of watchedResult.data ?? []) {
-    watchedIds.add(String(row.movie_id));
+  if (user) {
+    const { data } = await supabase
+      .from("user_movie_interactions")
+      .select("movie_id")
+      .eq("user_id", user.id)
+      .eq("status", "WATCHED");
+    for (const row of data ?? []) watchedIds.add(String(row.movie_id));
   }
 
   const editorialById = new Map(

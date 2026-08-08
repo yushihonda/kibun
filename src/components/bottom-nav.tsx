@@ -2,8 +2,8 @@
 
 import { Compass, Search, UserRound } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { RouteLoading } from "@/components/route-loading";
 
 const items = [
@@ -46,6 +46,9 @@ function NavItemContent({
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const prefetchTimer = useRef<number | null>(null);
+  const prefetchedHrefs = useRef(new Set<string>());
   const [pendingHref, setPendingHref] = useState<
     (typeof items)[number]["href"] | null
   >(null);
@@ -59,6 +62,24 @@ export function BottomNav() {
     const timeout = window.setTimeout(() => setPendingHref(null), 15_000);
     return () => window.clearTimeout(timeout);
   }, [pendingHref]);
+
+  function cancelScheduledPrefetch() {
+    if (prefetchTimer.current === null) return;
+    window.clearTimeout(prefetchTimer.current);
+    prefetchTimer.current = null;
+  }
+
+  function schedulePrefetch(href: (typeof items)[number]["href"]) {
+    const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+    if (active || prefetchedHrefs.current.has(href)) return;
+
+    cancelScheduledPrefetch();
+    prefetchTimer.current = window.setTimeout(() => {
+      prefetchedHrefs.current.add(href);
+      router.prefetch(href);
+      prefetchTimer.current = null;
+    }, 150);
+  }
 
   return (
     <>
@@ -78,7 +99,15 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
-              onNavigate={() => setPendingHref(href)}
+              prefetch={false}
+              onPointerEnter={() => schedulePrefetch(href)}
+              onPointerLeave={cancelScheduledPrefetch}
+              onFocus={() => schedulePrefetch(href)}
+              onBlur={cancelScheduledPrefetch}
+              onNavigate={() => {
+                cancelScheduledPrefetch();
+                setPendingHref(href);
+              }}
               className={`flex min-w-20 flex-col items-center gap-1 text-[10px] font-semibold transition ${
                 active ? "text-lime-300" : "text-white/55 hover:text-white"
               }`}
