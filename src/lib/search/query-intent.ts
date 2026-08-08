@@ -29,6 +29,8 @@ export type SearchPlan = {
   labels: string[];
   preferredGenres: Record<string, number>;
   avoidedGenres: Record<string, number>;
+  strictAvoidedGenres: string[];
+  strictAvoidedEmotionalTags: string[];
   preferredTerms: string[];
   preferredEmotionalTags: string[];
   inferredMaxRuntime: number | null;
@@ -618,6 +620,10 @@ export function analyzeSearchQuery(input: string): SearchPlan {
     labels: [...new Set(labels)],
     preferredGenres,
     avoidedGenres,
+    strictAvoidedGenres: safeViewing ? ["ホラー", "スリラー"] : [],
+    strictAvoidedEmotionalTags: safeViewing
+      ? ["怖い", "不穏", "ゾッとする", "残酷", "グロい"]
+      : [],
     preferredTerms: [...new Set(preferredTerms)],
     preferredEmotionalTags: [...new Set(preferredEmotionalTags)],
     inferredMaxRuntime,
@@ -627,6 +633,23 @@ export function analyzeSearchQuery(input: string): SearchPlan {
     inferredOriginCountries,
     expanded: hasInterpretation || queries.length > 1,
   };
+}
+
+export function violatesStrictAvoidance(
+  movie: Pick<Movie, "genres" | "emotionalTags">,
+  plan: SearchPlan,
+): boolean {
+  const avoidedGenres = new Set(plan.strictAvoidedGenres.map(normalize));
+  if (movie.genres.some((genre) => avoidedGenres.has(normalize(genre)))) {
+    return true;
+  }
+
+  return movie.emotionalTags.some((tag) => {
+    const normalizedTag = normalize(tag);
+    return plan.strictAvoidedEmotionalTags.some((avoided) =>
+      normalizedTag.includes(normalize(avoided)),
+    );
+  });
 }
 
 type ScoreBreakdown = {
@@ -869,6 +892,7 @@ export function rankSearchBatchesWithScores<T extends RankedMovie>(
   }
 
   return [...merged.values()]
+    .filter(({ movie }) => !violatesStrictAvoidance(movie, plan))
     .map(({ movie, retrievalScore }) => {
       const semantic = scoreBreakdown(movie, plan);
       const personalized = personalizationBreakdown(

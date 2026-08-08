@@ -86,10 +86,57 @@ describe("buildSearchRails", () => {
     ];
 
     const rails = buildSearchRails(movies, plan);
-    expect(
-      rails[0]?.id === "editorial" || rails.some((rail) => rail.id === "mood"),
-    ).toBe(true);
+    expect(rails[0]?.id).toBe("mood");
     expect(rails.some((rail) => rail.id === "mood")).toBe(true);
+  });
+
+  it("keeps explicit safe-viewing exclusions out of every rail", () => {
+    const plan = analyzeSearchQuery("癒やされたい。怖くないもの");
+    const socialSignals = {
+      postCount: 3,
+      totalViews: 100_000,
+      totalLikes: 10_000,
+      totalComments: 100,
+      totalShares: 50,
+      averageEngagementRate: 10.2,
+      trendScore: 75,
+      sentiment: "positive" as const,
+      sentimentScore: 0.7,
+      topHashtags: [],
+      topics: [],
+      latestPostAt: "2026-08-08T00:00:00Z",
+      updatedAt: "2026-08-08T00:00:00Z",
+      featuredPosts: [],
+    };
+    const rails = buildSearchRails(
+      [
+        movie({
+          id: "gentle-social",
+          title: "やさしい休日",
+          genres: ["ファミリー"],
+          emotionalTags: ["癒やし"],
+          matchReasons: ["気分タグ「癒やし」"],
+          socialSignals,
+        }),
+        movie({
+          id: "horror-social",
+          title: "恐怖の休日",
+          genres: ["ホラー"],
+          emotionalTags: ["怖い"],
+          socialSignals,
+        }),
+      ],
+      plan,
+      { now: new Date("2026-08-08T12:00:00Z") },
+    );
+
+    expect(rails[0]?.id).toBe("mood");
+    expect(
+      rails.flatMap((rail) => rail.movies).map(({ id }) => id),
+    ).not.toContain("horror-social");
+    expect(rails.find((rail) => rail.id === "tiktok-movies")?.movies).toEqual([
+      expect.objectContaining({ id: "gentle-social" }),
+    ]);
   });
 
   it("always separates films and TV dramas into explicit rails", () => {
