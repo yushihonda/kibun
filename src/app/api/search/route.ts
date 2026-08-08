@@ -7,7 +7,6 @@ import {
   type SearchMovieRow,
 } from "@/lib/movies/map-search-row";
 import { expandProviderSlugs } from "@/lib/providers/catalog";
-import { buildSearchRails } from "@/lib/search/category-rails";
 import {
   analyzeSearchQuery,
   rankSearchBatchesWithScores,
@@ -30,6 +29,9 @@ const fallbackQuery: PlannedQuery = {
 };
 
 const SEARCH_RPC_CONCURRENCY = 2;
+const SEARCH_HYDRATION_BUFFER = 72;
+const SEARCH_HYDRATION_MINIMUM = 120;
+const socialIntentPattern = /tiktok|ティックトック|話題|バズ|口コミ/iu;
 
 function withReasons(movies: Movie[], planExpanded: boolean) {
   return movies.map((movie) => ({
@@ -74,7 +76,7 @@ async function hydrateSearchMetadata(
     supabase
       .from("movies")
       .select(
-        "id,vote_count,sources,trending_at,theatrical_at,emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id,providers_checked_at",
+        "id,vote_count,sources,trending_at,theatrical_at,emotional_scores,providers_checked_at",
       )
       .in("id", ids),
     providerIds.length
@@ -119,12 +121,6 @@ async function hydrateSearchMetadata(
             emotionScores:
               (metadata.emotional_scores as Record<string, number> | null) ??
               undefined,
-            aliases: metadata.aliases ?? undefined,
-            keywords: metadata.keywords ?? undefined,
-            originCountries: metadata.origin_countries ?? undefined,
-            cast: metadata.tmdb_cast as Movie["cast"],
-            directors: metadata.tmdb_directors as Movie["directors"],
-            collectionId: metadata.tmdb_collection_id ?? undefined,
             providersCheckedAt: metadata.providers_checked_at ?? undefined,
             providers: movie.providers.map((provider) => ({
               ...provider,
@@ -198,7 +194,7 @@ export async function GET(request: NextRequest) {
   const plannedQueries = plan.queries.length ? plan.queries : [fallbackQuery];
   const candidateLimit = Math.min(
     100,
-    Math.max(60, (filters.limit + filters.offset) * 2),
+    Math.max(60, filters.limit + filters.offset + 12),
   );
   const supabase = await createClient();
   if (
@@ -289,7 +285,33 @@ export async function GET(request: NextRequest) {
     }
 
     if (batches.length) {
-      const hydratedBatches = await hydrateSearchMetadata(supabase, batches);
+      const preliminaryRanking = rankSearchBatchesWithScores(
+        batches,
+        plan,
+        personalization,
+      );
+      const hydrationLimit = Math.max(
+        SEARCH_HYDRATION_MINIMUM,
+        filters.offset + filters.limit + SEARCH_HYDRATION_BUFFER,
+      );
+      const hydrateAllCandidates = socialIntentPattern.test(filters.query);
+      const hydratedIds = hydrateAllCandidates
+        ? null
+        : new Set(
+            preliminaryRanking
+              .slice(0, hydrationLimit)
+              .map(({ movie }) => movie.id),
+          );
+      const hydrationBatches = hydratedIds
+        ? batches.map((batch) => ({
+            ...batch,
+            movies: batch.movies.filter((movie) => hydratedIds.has(movie.id)),
+          }))
+        : batches;
+      const hydratedBatches = await hydrateSearchMetadata(
+        supabase,
+        hydrationBatches,
+      );
       const ranked = rankSearchBatchesWithScores(
         hydratedBatches,
         plan,
@@ -300,16 +322,10 @@ export async function GET(request: NextRequest) {
       }));
       const page = ranked.slice(filters.offset, filters.offset + filters.limit);
       const hits = attachEditorialComments(page, editorial);
-      const rails = buildSearchRails(hits, plan, {
-        editorialMovies: editorial,
-        emptyQuery: !filters.query.trim(),
-      });
       await recordSearchEvent(supabase, request, filters.query, hits.length);
       return NextResponse.json({
         hits: withReasons(hits, plan.expanded),
-        movies: withReasons(hits, plan.expanded),
-        rails,
-        estimatedTotalHits: ranked.length,
+        estimatedTotalHits: preliminaryRanking.length,
         source: "supabase",
         interpretation: plan.expanded
           ? {
@@ -346,15 +362,9 @@ export async function GET(request: NextRequest) {
     ? rankedDemoHits.slice(filters.offset, filters.offset + filters.limit)
     : rankedDemoHits;
   const hits = attachEditorialComments(page, editorial);
-  const rails = buildSearchRails(hits, plan, {
-    editorialMovies: editorial,
-    emptyQuery: !filters.query.trim(),
-  });
   await recordSearchEvent(supabase, request, filters.query, hits.length);
   return NextResponse.json({
     hits: withReasons(hits, plan.expanded),
-    movies: withReasons(hits, plan.expanded),
-    rails,
     estimatedTotalHits: rankedDemoHits.length,
     source: "demo",
     interpretation: plan.expanded ? { labels: plan.labels } : null,

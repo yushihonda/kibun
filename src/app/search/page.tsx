@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { demoMovies } from "@/data/demo-movies";
 import { SearchExperience } from "@/features/search/search-experience";
-import { loadHomeFeed } from "@/lib/movies/home-feed";
+import { loadRequestHomeFeed } from "@/lib/movies/public-home-feed";
 import { buildSearchRails } from "@/lib/search/category-rails";
 import { PROVIDER_FILTERS } from "@/lib/providers/catalog";
 import { createClient } from "@/lib/supabase/server";
-import type { Movie, MovieRail } from "@/types/movie";
+import type { MovieRail } from "@/types/movie";
 
 export const metadata: Metadata = {
   title: "映画・ドラマを検索",
@@ -14,12 +14,11 @@ export const metadata: Metadata = {
 
 export default async function SearchPage() {
   const supabase = await createClient();
-  let initialMovies: Movie[] = demoMovies;
-  let editorialMovies: Movie[] = supabase
-    ? []
-    : demoMovies.filter((movie) => movie.editorialComment);
+  const demoEditorialMovies = demoMovies.filter((movie) =>
+    Boolean(movie.editorialComment),
+  );
   let initialRails: MovieRail[] = buildSearchRails(demoMovies, null, {
-    editorialMovies,
+    editorialMovies: demoEditorialMovies,
     emptyQuery: true,
   });
   let providerLogos: Record<string, string> = {};
@@ -27,7 +26,7 @@ export default async function SearchPage() {
   if (supabase) {
     try {
       const [feed, providerResult] = await Promise.all([
-        loadHomeFeed(supabase),
+        loadRequestHomeFeed(supabase),
         supabase
           .from("providers")
           .select("tmdb_provider_id,logo_path")
@@ -39,16 +38,6 @@ export default async function SearchPage() {
           ),
       ]);
       initialRails = feed.sections;
-      initialMovies = [
-        ...new Map(
-          feed.sections
-            .flatMap((rail) => rail.movies)
-            .map((movie) => [movie.id, movie] as const),
-        ).values(),
-      ];
-      editorialMovies = initialMovies.filter((movie) =>
-        Boolean(movie.editorialComment),
-      );
       const pathById = new Map(
         (providerResult.data ?? []).map((provider) => [
           Number(provider.tmdb_provider_id),
@@ -64,10 +53,8 @@ export default async function SearchPage() {
         }),
       );
     } catch {
-      initialMovies = demoMovies;
-      editorialMovies = demoMovies.filter((movie) => movie.editorialComment);
       initialRails = buildSearchRails(demoMovies, null, {
-        editorialMovies,
+        editorialMovies: demoEditorialMovies,
         emptyQuery: true,
       });
     }
@@ -75,9 +62,7 @@ export default async function SearchPage() {
 
   return (
     <SearchExperience
-      initialMovies={initialMovies}
       initialRails={initialRails}
-      editorialMovies={editorialMovies}
       providerLogos={providerLogos}
     />
   );

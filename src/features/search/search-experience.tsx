@@ -8,8 +8,8 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { MovieDetails } from "@/features/feed/movie-feed";
 import { CategoryRails } from "@/features/search/category-rails";
 import { ProviderLogo } from "@/components/provider-badge";
 import { buildSearchRails } from "@/lib/search/category-rails";
@@ -37,6 +37,10 @@ type SearchResponse = {
   } | null;
 };
 
+const MovieDetails = dynamic(() =>
+  import("@/features/feed/movie-feed").then((module) => module.MovieDetails),
+);
+
 const quickFilters = [
   { label: "映画", key: "movie" },
   { label: "ドラマ", key: "tv" },
@@ -51,14 +55,10 @@ const providerSlugs = new Set<string>(
 );
 
 export function SearchExperience({
-  initialMovies,
   initialRails = [],
-  editorialMovies = [],
   providerLogos = {},
 }: {
-  initialMovies: Movie[];
   initialRails?: MovieRail[];
-  editorialMovies?: Movie[];
   providerLogos?: Record<string, string>;
 }) {
   const [query, setQuery] = useState("");
@@ -75,6 +75,20 @@ export function SearchExperience({
   const [excludeWatched, setExcludeWatched] = useState(false);
   const [page, setPage] = useState(0);
   const [estimatedTotal, setEstimatedTotal] = useState(0);
+  const initialMovies = useMemo(
+    () => [
+      ...new Map(
+        initialRails
+          .flatMap((rail) => rail.movies)
+          .map((movie) => [movie.id, movie] as const),
+      ).values(),
+    ],
+    [initialRails],
+  );
+  const editorialMovies = useMemo(
+    () => initialMovies.filter((movie) => Boolean(movie.editorialComment)),
+    [initialMovies],
+  );
   const searchPlan = useMemo(() => analyzeSearchQuery(query), [query]);
   const providerServiceBySlug = useMemo(
     () =>

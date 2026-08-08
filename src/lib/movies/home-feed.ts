@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import {
   discoveryScore,
   evergreenScore,
@@ -60,7 +60,7 @@ function section(
 
 export async function loadHomeFeed(
   supabase: SupabaseClient,
-  options?: { now?: Date },
+  options?: { now?: Date; user?: User | null },
 ): Promise<{
   sections: MovieRail[];
   personalized: boolean;
@@ -68,8 +68,10 @@ export async function loadHomeFeed(
 }> {
   const now = options?.now ?? new Date();
   const generatedAt = now.toISOString();
-  const authResult = await supabase.auth.getUser();
-  const user = authResult.data.user;
+  const user =
+    options && "user" in options
+      ? (options.user ?? null)
+      : (await supabase.auth.getUser()).data.user;
   const trendingSince = new Date(now.getTime() - 10 * 86_400_000).toISOString();
   const theatricalSince = new Date(
     now.getTime() - 4 * 86_400_000,

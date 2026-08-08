@@ -21,6 +21,7 @@ test("feed and search are reachable", async ({ page, request }) => {
   await expect(page.getByRole("link", { name: "KIBUN ホーム" })).toBeVisible();
   const movies = page.getByTestId("movie-feed-item");
   await expect(movies.first()).toBeVisible();
+  expect(await movies.count()).toBeLessThanOrEqual(12);
   await expect(movies.first()).toHaveAttribute(
     "data-movie-id",
     /^[0-9a-f]{8}-[0-9a-f-]{27}$/,
@@ -109,8 +110,12 @@ test("feed and search are reachable", async ({ page, request }) => {
   expect(safeResponse.ok()).toBe(true);
   const safeBody = (await safeResponse.json()) as {
     hits: Array<{ genres: string[]; emotionalTags: string[] }>;
+    movies?: unknown;
+    rails?: unknown;
   };
   expect(safeBody.hits.length).toBeGreaterThan(0);
+  expect(safeBody.movies).toBeUndefined();
+  expect(safeBody.rails).toBeUndefined();
   expect(
     safeBody.hits.some(
       (movie) =>

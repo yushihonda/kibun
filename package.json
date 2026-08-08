@@ -18,6 +18,7 @@
     "validate:search-relevance": "tsx scripts/validate-search-relevance.ts",
     "test:search-quality": "tsx scripts/evaluate-search-precision.ts",
     "bench:search": "tsx scripts/benchmark-search.ts",
+    "bench:pages": "tsx scripts/benchmark-pages.ts",
     "verify:production": "tsx scripts/verify-production.ts",
     "backfill:emotions": "tsx scripts/backfill-emotions.ts",
     "backfill:videos": "tsx scripts/backfill-videos.ts",
