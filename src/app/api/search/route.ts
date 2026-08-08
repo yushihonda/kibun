@@ -33,7 +33,11 @@ const SEARCH_RPC_CONCURRENCY = 2;
 function withReasons(movies: Movie[], planExpanded: boolean) {
   return movies.map((movie) => ({
     ...movie,
-    matchReasons: planExpanded ? (movie.matchReasons ?? []) : undefined,
+    matchReasons:
+      planExpanded ||
+      movie.matchReasons?.some((reason) => reason.startsWith("TikTok"))
+        ? (movie.matchReasons ?? [])
+        : undefined,
   }));
 }
 

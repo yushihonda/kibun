@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Movie } from "@/types/movie";
-import { analyzeSearchQuery, rankSearchBatches } from "./query-intent";
+import {
+  analyzeSearchQuery,
+  explainMovieReasons,
+  rankSearchBatches,
+} from "./query-intent";
 
 const movie = (
   overrides: Partial<Movie> & Pick<Movie, "id" | "title">,
@@ -185,5 +189,72 @@ describe("rankSearchBatches", () => {
         plan,
       )[0].id,
     ).toBe("tearjerker");
+  });
+
+  it("uses a fresh TikTok hashtag as a capped auxiliary ranking signal", () => {
+    const plan = analyzeSearchQuery("伏線考察");
+    const social = movie({
+      id: "social",
+      title: "静かな事件",
+      socialSignals: {
+        postCount: 4,
+        totalViews: 50_000,
+        totalLikes: 5_000,
+        totalComments: 100,
+        totalShares: 20,
+        averageEngagementRate: 10,
+        trendScore: 60,
+        sentiment: "positive",
+        sentimentScore: 0.5,
+        topHashtags: ["伏線考察"],
+        topics: [],
+        latestPostAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        featuredPosts: [],
+      },
+    });
+    const unrelated = movie({ id: "unrelated", title: "別の作品" });
+
+    expect(
+      rankSearchBatches(
+        [{ query: plan.queries[0], movies: [unrelated, social] }],
+        plan,
+      )[0].id,
+    ).toBe("social");
+    expect(explainMovieReasons(social, plan)).toContain(
+      "TikTokの「#伏線考察」に一致",
+    );
+  });
+
+  it("keeps an exact official title ahead of a TikTok-only match", () => {
+    const plan = analyzeSearchQuery("伏線考察");
+    const exact = movie({ id: "exact-social-title", title: "伏線考察" });
+    const social = movie({
+      id: "social-only",
+      title: "別の話題作",
+      socialSignals: {
+        postCount: 100,
+        totalViews: 10_000_000,
+        totalLikes: 1_000_000,
+        totalComments: 10_000,
+        totalShares: 2_000,
+        averageEngagementRate: 10,
+        trendScore: 100,
+        sentiment: "positive",
+        sentimentScore: 0.9,
+        topHashtags: ["伏線考察"],
+        topics: [],
+        latestPostAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        featuredPosts: [],
+      },
+    });
+
+    expect(
+      rankSearchBatches(
+        [{ query: plan.queries[0], movies: [social, exact] }],
+        plan,
+      )[0].id,
+    ).toBe("exact-social-title");
   });
 });
