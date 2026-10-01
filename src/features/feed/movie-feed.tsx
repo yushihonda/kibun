@@ -34,8 +34,8 @@ const compactNumber = new Intl.NumberFormat("ja-JP", {
   maximumFractionDigits: 1,
 });
 
-const INITIAL_FEED_ITEMS = 12;
-const FEED_ITEMS_INCREMENT = 12;
+const INITIAL_FEED_ITEMS = 2;
+const FEED_ITEMS_INCREMENT = 6;
 
 function sentimentLabel(
   sentiment: NonNullable<Movie["socialSignals"]>["sentiment"],
@@ -735,11 +735,6 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
     );
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setVideoPlaybackEnabled(true), 1800);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     const index = pendingScrollIndex.current;
     if (index === null || index >= renderedCount) return;
     pendingScrollIndex.current = null;
@@ -939,7 +934,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                 alt=""
                 fill
                 sizes="(max-width: 767px) 100vw, 1px"
-                quality={65}
+                quality={55}
                 loading={index === 0 ? "eager" : "lazy"}
                 fetchPriority={index === 0 ? "high" : "auto"}
                 className="object-cover object-center md:hidden"
@@ -949,39 +944,56 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                 alt=""
                 fill
                 sizes="(max-width: 767px) 1px, 100vw"
-                quality={65}
+                quality={55}
                 loading={index === 0 ? "eager" : "lazy"}
                 fetchPriority={index === 0 ? "high" : "auto"}
                 className="hidden object-cover md:block"
               />
-              {movie.video?.platform === "youtube" && (
-                <div
-                  data-testid="feed-video-surface"
-                  data-video-platform="youtube"
-                  className="absolute inset-0 overflow-hidden bg-black"
-                >
-                  <YouTubePlayer
-                    videoId={movie.video.videoId}
-                    active={videoPlaybackEnabled && index === activeIndex}
-                    muted={muted}
-                    className="h-full w-full"
-                  />
-                </div>
-              )}
-              {movie.video?.platform === "tiktok" && (
-                <div
-                  data-testid="feed-video-surface"
-                  data-video-platform="tiktok"
-                  className="absolute inset-0 overflow-hidden bg-black"
-                >
-                  <TikTokPlayer
-                    videoId={movie.video.videoId}
-                    active={videoPlaybackEnabled && index === activeIndex}
-                    className="h-full w-full"
-                  />
-                </div>
-              )}
+              {videoPlaybackEnabled &&
+                index === activeIndex &&
+                movie.video?.platform === "youtube" && (
+                  <div
+                    data-testid="feed-video-surface"
+                    data-video-platform="youtube"
+                    className="absolute inset-0 overflow-hidden bg-black"
+                  >
+                    <YouTubePlayer
+                      videoId={movie.video.videoId}
+                      active
+                      muted={muted}
+                      className="h-full w-full"
+                    />
+                  </div>
+                )}
+              {videoPlaybackEnabled &&
+                index === activeIndex &&
+                movie.video?.platform === "tiktok" && (
+                  <div
+                    data-testid="feed-video-surface"
+                    data-video-platform="tiktok"
+                    className="absolute inset-0 overflow-hidden bg-black"
+                  >
+                    <TikTokPlayer
+                      videoId={movie.video.videoId}
+                      active
+                      className="h-full w-full"
+                    />
+                  </div>
+                )}
               <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black via-black/5 to-black/30" />
+              {!videoPlaybackEnabled &&
+                index === activeIndex &&
+                movie.video && (
+                  <button
+                    type="button"
+                    onClick={() => setVideoPlaybackEnabled(true)}
+                    className="absolute top-1/2 left-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-white/25 bg-black/55 px-5 py-3 text-sm font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 hover:bg-black/70"
+                    aria-label="予告編を再生"
+                  >
+                    <Play size={20} className="fill-current" />
+                    予告編を再生
+                  </button>
+                )}
               <div
                 data-testid="feed-summary"
                 className="absolute inset-x-0 bottom-20 z-20 flex items-end gap-2 px-4 pb-4 md:bottom-8 md:gap-3 md:px-10 md:pb-7"

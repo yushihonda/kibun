@@ -24,6 +24,7 @@ import {
 import { loadSearchPersonalization } from "@/lib/search/personalization";
 import { createClient } from "@/lib/supabase/server";
 import { withinRateLimit } from "@/lib/rate-limit";
+import { hasSupabaseAuthCookie } from "@/lib/supabase/auth-cookie";
 import {
   mapMovieSocialSignals,
   type MovieSocialSignalRow,
@@ -38,6 +39,7 @@ const fallbackQuery: PlannedQuery = {
 
 const SEARCH_RPC_CONCURRENCY = 3;
 const SEARCH_RPC_MAX_QUERIES = 3;
+const FAST_INTENT_LITERAL_MIN_LENGTH = 9;
 const SEARCH_HYDRATION_BUFFER = 72;
 const SEARCH_HYDRATION_MINIMUM = 120;
 const socialIntentPattern = /tiktok|ティックトック|話題|バズ|口コミ/iu;
@@ -352,6 +354,7 @@ async function recordSearchEvent(
   request: NextRequest,
   query: string,
   resultCount: number,
+  hasAuthSession: boolean,
 ) {
   if (!supabase) return;
   const sessionId = request.headers.get("x-kibun-session");
@@ -362,9 +365,9 @@ async function recordSearchEvent(
     )
       ? sessionId
       : null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = hasAuthSession
+    ? (await supabase.auth.getUser()).data.user
+    : null;
   if (!user && !validSession) return;
   const writes = [
     supabase.from("product_events").insert({
@@ -419,6 +422,7 @@ export async function GET(request: NextRequest) {
     Math.max(60, filters.limit + filters.offset + 12),
   );
   const supabase = await createClient();
+  const hasAuthSession = hasSupabaseAuthCookie(request.cookies.getAll());
   if (
     supabase &&
     !(await withinRateLimit(request, supabase, {
@@ -434,9 +438,10 @@ export async function GET(request: NextRequest) {
     : Promise.resolve(
         demoMovies.filter((movie) => movie.editorialComment) as Movie[],
       );
-  const personalizationPromise = supabase
-    ? loadSearchPersonalization(supabase).catch(() => null)
-    : Promise.resolve(null);
+  const personalizationPromise =
+    supabase && hasAuthSession
+      ? loadSearchPersonalization(supabase).catch(() => null)
+      : Promise.resolve(null);
 
   if (supabase) {
     const canUseFastIntentSearch =
@@ -445,6 +450,10 @@ export async function GET(request: NextRequest) {
       !filters.excludeWatched &&
       providerSlugs.length === 0 &&
       filters.offerTypes.length === 0;
+    const literalQueries =
+      filters.query.trim().length >= FAST_INTENT_LITERAL_MIN_LENGTH
+        ? plannedQueries.filter(({ source }) => source === "literal")
+        : [];
     const searchPromise = canUseFastIntentSearch
       ? Promise.all([
           loadFastIntentBatches(
@@ -457,7 +466,7 @@ export async function GET(request: NextRequest) {
           ),
           loadRpcSearchBatches(
             supabase,
-            plannedQueries.filter(({ source }) => source === "literal"),
+            literalQueries,
             plan,
             effectiveFilters,
             providerSlugs,
@@ -524,7 +533,13 @@ export async function GET(request: NextRequest) {
       const page = ranked.slice(filters.offset, filters.offset + filters.limit);
       const hits = attachEditorialComments(page, editorial);
       after(() =>
-        recordSearchEvent(supabase, request, filters.query, hits.length),
+        recordSearchEvent(
+          supabase,
+          request,
+          filters.query,
+          hits.length,
+          hasAuthSession,
+        ),
       );
       return NextResponse.json({
         hits: withReasons(hits, plan.expanded),
@@ -565,7 +580,15 @@ export async function GET(request: NextRequest) {
     ? rankedDemoHits.slice(filters.offset, filters.offset + filters.limit)
     : rankedDemoHits;
   const hits = attachEditorialComments(page, editorial);
-  after(() => recordSearchEvent(supabase, request, filters.query, hits.length));
+  after(() =>
+    recordSearchEvent(
+      supabase,
+      request,
+      filters.query,
+      hits.length,
+      hasAuthSession,
+    ),
+  );
   return NextResponse.json({
     hits: withReasons(hits, plan.expanded),
     estimatedTotalHits: rankedDemoHits.length,

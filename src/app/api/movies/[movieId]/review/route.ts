@@ -3,16 +3,20 @@ import { z } from "zod";
 import { loginPath } from "@/lib/auth/next-path";
 import { createClient } from "@/lib/supabase/server";
 import { withinRateLimit } from "@/lib/rate-limit";
+import { hasSupabaseAuthCookie } from "@/lib/supabase/auth-cookie";
 
 const reviewSchema = z.object({
   body: z.string().trim().min(1).max(4000),
 });
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ movieId: string }> },
 ) {
   const { movieId } = await params;
+  if (!hasSupabaseAuthCookie(request.cookies.getAll())) {
+    return NextResponse.json({ review: null });
+  }
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ review: null });
   const {
@@ -37,6 +41,12 @@ export async function PUT(
   { params }: { params: Promise<{ movieId: string }> },
 ) {
   const { movieId } = await params;
+  if (!hasSupabaseAuthCookie(request.cookies.getAll())) {
+    return NextResponse.json(
+      { error: "unauthorized", loginUrl: loginPath(`/?movie=${movieId}`) },
+      { status: 401 },
+    );
+  }
   const supabase = await createClient();
   if (!supabase) {
     return NextResponse.json({ error: "not_configured" }, { status: 503 });

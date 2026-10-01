@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfig } from "./config";
+import { hasSupabaseAuthCookie } from "./auth-cookie";
 import { createContentSecurityPolicy } from "@/lib/security/csp";
 
 export async function updateSupabaseSession(request: NextRequest) {
@@ -24,9 +25,7 @@ export async function updateSupabaseSession(request: NextRequest) {
     return unconfiguredResponse;
   }
 
-  const hasAuthCookie = request.cookies
-    .getAll()
-    .some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
+  const hasAuthCookie = hasSupabaseAuthCookie(request.cookies.getAll());
   if (!hasAuthCookie) {
     const anonymousResponse = makeResponse();
     anonymousResponse.headers.set(

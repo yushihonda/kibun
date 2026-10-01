@@ -5,6 +5,7 @@ import { loadHomeFeed } from "@/lib/movies/home-feed";
 import { loadPublicSearchLanding } from "@/lib/movies/search-landing";
 
 const PUBLIC_FEED_TTL_MS = 5 * 60 * 1_000;
+const PUBLIC_HOME_MOVIE_LIMIT = 36;
 
 type HomeFeed = Awaited<ReturnType<typeof loadHomeFeed>>;
 
@@ -18,8 +19,15 @@ export async function loadPublicHomeFeed(): Promise<HomeFeed> {
 
   pendingFeed = loadPublicSearchLanding()
     .then(({ sections }) => {
+      let remaining = PUBLIC_HOME_MOVIE_LIMIT;
+      const compactSections = sections.flatMap((section) => {
+        if (remaining <= 0) return [];
+        const movies = section.movies.slice(0, remaining);
+        remaining -= movies.length;
+        return movies.length ? [{ ...section, movies }] : [];
+      });
       const value = {
-        sections,
+        sections: compactSections,
         personalized: false,
         generatedAt: new Date(now).toISOString(),
       } satisfies HomeFeed;

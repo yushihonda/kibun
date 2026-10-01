@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { loadRecommendations } from "@/lib/recommendations/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasSupabaseAuthCookie } from "@/lib/supabase/auth-cookie";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -22,7 +23,15 @@ export async function GET(request: NextRequest) {
     : 18;
 
   try {
-    const result = await loadRecommendations(supabase, { seedMovieId, limit });
+    const hasAuthSession = hasSupabaseAuthCookie(request.cookies.getAll());
+    const user = hasAuthSession
+      ? (await supabase.auth.getUser()).data.user
+      : null;
+    const result = await loadRecommendations(supabase, {
+      seedMovieId,
+      limit,
+      user,
+    });
     return NextResponse.json({ ...result, source: "supabase" });
   } catch (error) {
     console.error("Recommendation generation failed", error);

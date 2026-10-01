@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { withinRateLimit } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { hasSupabaseAuthCookie } from "@/lib/supabase/auth-cookie";
 
 const eventSchema = z.object({
   sessionId: z.string().uuid(),
@@ -38,9 +39,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = hasSupabaseAuthCookie(request.cookies.getAll())
+    ? (await supabase.auth.getUser()).data.user
+    : null;
   const { error } = await supabase.from("product_events").insert({
     user_id: user?.id ?? null,
     session_id: parsed.data.sessionId,

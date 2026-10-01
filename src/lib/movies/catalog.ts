@@ -140,14 +140,18 @@ export async function loadCatalogMovies(
     releaseDateTo?: string;
     mediaTypes?: Array<"movie" | "tv">;
     sources?: string[];
+    includeSocialDetails?: boolean;
   },
 ): Promise<CatalogMovie[]> {
   const limit = Math.min(Math.max(options?.limit ?? 240, 1), 500);
   const recommendationFields = options?.includeRecommendationMetadata
     ? ",emotional_scores,aliases,keywords,origin_countries,tmdb_cast,tmdb_directors,tmdb_collection_id"
     : "";
-  const relatedFields =
-    ",movie_videos(movie_id,platform,video_id,url,created_at,status),movie_providers(movie_id,offer_type,tmdb_link,updated_at,country,providers(tmdb_provider_id,name,slug,logo_path)),movie_social_signals(movie_id,post_count,total_views,total_likes,total_comments,total_shares,average_engagement_rate,trend_score,sentiment,sentiment_score,top_hashtags,topics,summary,latest_post_at,featured_posts,calculated_at)";
+  const socialFields =
+    options?.includeSocialDetails === false
+      ? "movie_id,post_count,total_views,total_likes,total_comments,total_shares,average_engagement_rate,trend_score,sentiment,sentiment_score,latest_post_at,calculated_at"
+      : "movie_id,post_count,total_views,total_likes,total_comments,total_shares,average_engagement_rate,trend_score,sentiment,sentiment_score,top_hashtags,topics,summary,latest_post_at,featured_posts,calculated_at";
+  const relatedFields = `,movie_videos(movie_id,platform,video_id,url,created_at,status),movie_providers(movie_id,offer_type,tmdb_link,updated_at,country,providers(tmdb_provider_id,name,slug,logo_path)),movie_social_signals(${socialFields})`;
   let query = supabase
     .from("movies")
     .select(

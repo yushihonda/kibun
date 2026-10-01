@@ -28,6 +28,10 @@ test("feed and search are reachable", async ({ page, request }) => {
   );
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
+  const playTrailer = page.getByRole("button", { name: "予告編を再生" });
+  await expect(playTrailer).toBeVisible();
+  await expect(page.getByTestId("feed-video-surface")).toHaveCount(0);
+  await playTrailer.click();
   const videoSurface = page.getByTestId("feed-video-surface").first();
   await expect(videoSurface).toBeAttached();
   const videoBox = await videoSurface.boundingBox();

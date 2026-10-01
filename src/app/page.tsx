@@ -1,8 +1,13 @@
 import { demoMovies } from "@/data/demo-movies";
 import { MovieFeed } from "@/features/feed/movie-feed";
-import { loadRequestHomeFeed } from "@/lib/movies/public-home-feed";
+import {
+  loadPublicHomeFeed,
+  loadRequestHomeFeed,
+} from "@/lib/movies/public-home-feed";
+import { hasSupabaseAuthCookie } from "@/lib/supabase/auth-cookie";
 import { createClient } from "@/lib/supabase/server";
 import type { MovieRail } from "@/types/movie";
+import { cookies } from "next/headers";
 
 function demoSections(): MovieRail[] {
   return [
@@ -22,6 +27,19 @@ function demoSections(): MovieRail[] {
 }
 
 export default async function Home() {
+  const hasSession = hasSupabaseAuthCookie((await cookies()).getAll());
+  if (!hasSession) {
+    let sections: MovieRail[];
+    try {
+      sections = (await loadPublicHomeFeed()).sections;
+      if (!sections.length) sections = demoSections();
+    } catch (error) {
+      console.error("Public home feed failed", error);
+      sections = demoSections();
+    }
+    return <MovieFeed sections={sections} />;
+  }
+
   const supabase = await createClient();
   if (!supabase) {
     const sections = demoSections();

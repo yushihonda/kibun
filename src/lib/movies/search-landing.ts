@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { readEdgeJson, writeEdgeJson } from "@/lib/cache/edge-json";
 import {
   isNowPlayingTitle,
   isRecentTitle,
@@ -18,6 +19,8 @@ import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import type { Movie, MovieRail } from "@/types/movie";
 
 const SEARCH_LANDING_TTL_MS = 5 * 60 * 1_000;
+const SEARCH_LANDING_TTL_SECONDS = 5 * 60;
+const SEARCH_LANDING_CACHE_KEY = "public-search-landing-v3";
 const MAX_LANDING_MOVIES_PER_RAIL = 8;
 
 type SearchLanding = {
@@ -55,22 +58,25 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
   const [trendingMovies, recentMovies, japaneseMovies, providerResult] =
     await Promise.all([
       loadCatalogMovies(supabase, {
-        limit: 120,
+        limit: 72,
         orderBy: "trending_at",
         trendingSince,
+        includeSocialDetails: false,
       }),
       loadCatalogMovies(supabase, {
-        limit: 120,
+        limit: 72,
         orderBy: "release_date",
         releaseDateFrom,
         releaseDateTo,
+        includeSocialDetails: false,
       }),
       loadCatalogMovies(supabase, {
-        limit: 64,
+        limit: 48,
         orderBy: "popularity",
         mediaTypes: ["movie"],
         sources: ["japan"],
         releaseDateFrom: japaneseReleaseDateFrom,
+        includeSocialDetails: false,
       }),
       supabase
         .from("providers")
@@ -190,7 +196,17 @@ export async function loadPublicSearchLanding(): Promise<SearchLanding> {
     return cachedLanding.value;
   }
   if (pendingLanding) return pendingLanding;
-  pendingLanding = buildSearchLanding(new Date(now))
+  pendingLanding = readEdgeJson<SearchLanding>(SEARCH_LANDING_CACHE_KEY)
+    .then(async (edgeValue) => {
+      if (edgeValue) return edgeValue;
+      const value = await buildSearchLanding(new Date(now));
+      await writeEdgeJson(
+        SEARCH_LANDING_CACHE_KEY,
+        value,
+        SEARCH_LANDING_TTL_SECONDS,
+      );
+      return value;
+    })
     .then((value) => {
       cachedLanding = {
         value,
