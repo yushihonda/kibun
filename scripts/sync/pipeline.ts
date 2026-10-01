@@ -29,6 +29,8 @@ export interface SyncConfig {
   emotionAiMaxMovies: number;
   emotionAiMaxCostUsd: number;
   runSource?: string;
+  releaseDateFrom?: string;
+  releaseDateTo?: string;
 }
 
 const ESTIMATED_AI_COST_PER_MOVIE_USD = 0.0003;
@@ -125,14 +127,18 @@ export async function runSync(config: SyncConfig): Promise<{
     for (const mediaType of config.mediaTypes) {
       for (const source of config.sources) {
         try {
-          const first = await tmdb.list(source, 1, mediaType);
+          const listFilters = {
+            releaseDateFrom: config.releaseDateFrom,
+            releaseDateTo: config.releaseDateTo,
+          };
+          const first = await tmdb.list(source, 1, mediaType, listFilters);
           mergeMovies(discovered, first.results, source, mediaType);
           const limit = pageLimit(first.total_pages, config.maxPages);
           for (let page = 2; page <= limit; page += 1) {
             try {
               mergeMovies(
                 discovered,
-                (await tmdb.list(source, page, mediaType)).results,
+                (await tmdb.list(source, page, mediaType, listFilters)).results,
                 source,
                 mediaType,
               );

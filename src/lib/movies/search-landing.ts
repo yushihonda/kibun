@@ -51,6 +51,7 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
   const releaseDateTo = new Date(now.getTime() + 90 * 86_400_000)
     .toISOString()
     .slice(0, 10);
+  const japaneseReleaseDateFrom = `${now.getUTCFullYear() - 3}-01-01`;
   const [trendingMovies, recentMovies, japaneseMovies, providerResult] =
     await Promise.all([
       loadCatalogMovies(supabase, {
@@ -69,6 +70,7 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
         orderBy: "popularity",
         mediaTypes: ["movie"],
         sources: ["japan"],
+        releaseDateFrom: japaneseReleaseDateFrom,
       }),
       supabase
         .from("providers")

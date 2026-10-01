@@ -2,7 +2,7 @@
 
 ## 日次カタログ同期
 
-GitHub Actionsの `Daily movie and drama trends` は毎日01:20 UTCに実行する。無料のTMDB APIだけを使い、映画・ドラマの週間トレンドを各3ページ、上映中映画・本日放送ドラマ・近日公開映画・放送中ドラマを各5ページ同期する。AI感情生成は無効のままにし、一覧取得後にTMDBから削除された作品の404はスキップする。通信障害やレート制限による失敗は各ステップを最大3回再試行する。
+GitHub Actionsの `Daily movie and drama trends` は毎日01:20 UTCに実行する。無料のTMDB APIだけを使い、映画・ドラマの週間トレンドを各3ページ、上映中映画・本日放送ドラマ・近日公開映画・放送中ドラマを各5ページ、直近3暦年の邦画を5ページ同期する。AI感情生成は無効のままにし、一覧取得後にTMDBから削除された作品の404はスキップする。通信障害やレート制限による失敗は各ステップを最大3回再試行する。
 
 必須のGitHub Secrets:
 
@@ -14,7 +14,7 @@ GitHub Actionsの `Daily movie and drama trends` は毎日01:20 UTCに実行す�
 
 ## 月次同期
 
-`Japanese movie catalog sync` は毎月15日04:00 UTCに、日本制作・日本語の映画だけを100ページ同期する。`SYNC_REFRESH_TRACKED=false` とAI無効設定により、他作品の再取得や有料AI APIの利用を避ける。手動実行時は `max_pages` を変更でき、正常時は `sync_runs.source = 'tmdb-japanese-movies'`、`failed_count = 0` になる。
+`Japanese movie catalog sync` は毎月15日04:00 UTCに、当年を含む直近4暦年の日本制作映画だけを100ページ同期する。同期後、基準日より古く、「評価7.0以上かつ投票100件以上」または「評価6.5以上かつ投票150件以上」の名作条件を満たさず、ユーザー操作・レビュー・編集部選定・手動補正からも参照されていない邦画を削除する。`SYNC_REFRESH_TRACKED=false` とAI無効設定により、他作品の再取得や有料AI APIの利用を避ける。手動実行時は `max_pages` を変更でき、正常時は `sync_runs.source = 'tmdb-japanese-movies'`、`failed_count = 0` になる。削除だけを確認する場合は `JAPANESE_MOVIE_CUTOFF=YYYY-MM-DD npm run prune:japanese-movies` をdry-runで実行し、適用時だけ `PRUNE_OLD_JAPANESE_MOVIES_APPLY=true` を加える。
 
 GitHub Actionsの `Monthly movie sync` は毎月1日03:00 UTCに実行する。手動実行では `max_pages` と `sources` を変更できる。同期は再実行可能なupsertで、最大3回まで待機時間を増やして再試行する。失敗時は `sync-failure` Issueを作成し、データ監査JSONをartifactへ保存する。
 

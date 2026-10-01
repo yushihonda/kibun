@@ -15,12 +15,15 @@ describe("TMDB source routing", () => {
   });
 
   it("restricts the Japanese catalog to Japanese productions", () => {
-    expect(sourceConfig("movie", "japan")).toEqual({
+    expect(
+      sourceConfig("movie", "japan", { releaseDateFrom: "2023-01-01" }),
+    ).toEqual({
       path: "/discover/movie",
       params: {
         sort_by: "popularity.desc",
         include_adult: false,
         with_origin_country: "JP",
+        "primary_release_date.gte": "2023-01-01",
       },
     });
   });

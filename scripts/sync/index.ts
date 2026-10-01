@@ -12,6 +12,15 @@ function required(name: string): string {
   return value;
 }
 
+function optionalDate(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  if (!value) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value))) {
+    throw new Error(`${name} must use YYYY-MM-DD`);
+  }
+  return value;
+}
+
 function configFromEnvironment(): SyncConfig {
   const concurrency = Number(process.env.SYNC_CONCURRENCY?.trim() || "5");
   if (!Number.isInteger(concurrency) || concurrency < 1) {
@@ -44,6 +53,8 @@ function configFromEnvironment(): SyncConfig {
     emotionAiMaxMovies,
     emotionAiMaxCostUsd,
     runSource: process.env.SYNC_RUN_SOURCE?.trim() || undefined,
+    releaseDateFrom: optionalDate("SYNC_RELEASE_DATE_FROM"),
+    releaseDateTo: optionalDate("SYNC_RELEASE_DATE_TO"),
   };
 }
 

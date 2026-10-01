@@ -19,6 +19,11 @@ type SourceConfig = {
   params?: Record<string, string | number | boolean>;
 };
 
+export type TmdbListFilters = {
+  releaseDateFrom?: string;
+  releaseDateTo?: string;
+};
+
 type RawTmdbListItem = Partial<TmdbListMovie> & {
   id: number;
   name?: string;
@@ -63,12 +68,35 @@ type RawTmdbDetails = RawTmdbListItem & {
 export function sourceConfig(
   mediaType: MediaType,
   source: TmdbSource,
+  filters: TmdbListFilters = {},
 ): SourceConfig {
   const kind = mediaType === "tv" ? "tv" : "movie";
+  const releaseDateParams =
+    mediaType === "movie"
+      ? {
+          ...(filters.releaseDateFrom
+            ? { "primary_release_date.gte": filters.releaseDateFrom }
+            : {}),
+          ...(filters.releaseDateTo
+            ? { "primary_release_date.lte": filters.releaseDateTo }
+            : {}),
+        }
+      : {
+          ...(filters.releaseDateFrom
+            ? { "first_air_date.gte": filters.releaseDateFrom }
+            : {}),
+          ...(filters.releaseDateTo
+            ? { "first_air_date.lte": filters.releaseDateTo }
+            : {}),
+        };
   if (source === "discover") {
     return {
       path: `/discover/${kind}`,
-      params: { sort_by: "popularity.desc", include_adult: false },
+      params: {
+        sort_by: "popularity.desc",
+        include_adult: false,
+        ...releaseDateParams,
+      },
     };
   }
   if (source === "popular") return { path: `/${kind}/popular` };
@@ -90,6 +118,7 @@ export function sourceConfig(
         sort_by: "popularity.desc",
         include_adult: false,
         with_origin_country: "JP",
+        ...releaseDateParams,
       },
     };
   }
@@ -100,6 +129,7 @@ export function sourceConfig(
       include_adult: false,
       with_origin_country: "KR",
       with_original_language: "ko",
+      ...releaseDateParams,
     },
   };
 }
@@ -193,8 +223,9 @@ export class TmdbClient {
     source: TmdbSource,
     page: number,
     mediaType: MediaType = "movie",
+    filters: TmdbListFilters = {},
   ): Promise<TmdbListResponse> {
-    const config = sourceConfig(mediaType, source);
+    const config = sourceConfig(mediaType, source, filters);
     const response = await this.request<{
       page: number;
       total_pages: number;

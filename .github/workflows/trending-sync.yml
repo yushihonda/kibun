@@ -56,3 +56,16 @@ jobs:
             if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
           done
           exit 1
+      - name: Sync recent Japanese movies
+        env:
+          SYNC_SOURCES: japan
+          SYNC_MEDIA_TYPES: movie
+          SYNC_MAX_PAGES: "5"
+        shell: bash
+        run: |
+          cutoff="$(( $(date -u +%Y) - 2 ))-01-01"
+          for attempt in 1 2 3; do
+            if SYNC_RELEASE_DATE_FROM="$cutoff" npm run sync:catalog; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
+          done
+          exit 1

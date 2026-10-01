@@ -33,6 +33,10 @@ jobs:
       SYNC_RUN_SOURCE: tmdb-japanese-movies
       EMOTION_AI_MAX_MOVIES: "0"
       EMOTION_AI_MAX_COST_USD: "0"
+      JAPANESE_CLASSIC_MIN_RATING: "7"
+      JAPANESE_CLASSIC_MIN_VOTES: "100"
+      JAPANESE_CLASSIC_POPULAR_MIN_RATING: "6.5"
+      JAPANESE_CLASSIC_POPULAR_MIN_VOTES: "150"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -42,7 +46,13 @@ jobs:
       - run: npm ci
       - name: Close interrupted runs
         run: npm run sync:close-stale
-      - name: Sync Japanese movies with retries
+      - name: Set rolling release cutoff
+        shell: bash
+        run: |
+          cutoff="$(( $(date -u +%Y) - 3 ))-01-01"
+          echo "SYNC_RELEASE_DATE_FROM=$cutoff" >> "$GITHUB_ENV"
+          echo "JAPANESE_MOVIE_CUTOFF=$cutoff" >> "$GITHUB_ENV"
+      - name: Sync recent Japanese movies with retries
         shell: bash
         run: |
           for attempt in 1 2 3; do
@@ -50,6 +60,10 @@ jobs:
             if [ "$attempt" -lt 3 ]; then sleep $((attempt * 30)); fi
           done
           exit 1
+      - name: Remove old Japanese movies except classics and referenced titles
+        env:
+          PRUNE_OLD_JAPANESE_MOVIES_APPLY: "true"
+        run: npm run prune:japanese-movies
       - name: Data audit
         if: always()
         run: npm run audit:data
