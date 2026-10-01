@@ -71,7 +71,7 @@ describe("analyzeSearchQuery", () => {
     expect(japanese.labels).toContain("邦画");
     expect(japanese.inferredOriginCountries).toEqual(["JP"]);
     expect(japanese.inferredMediaTypes).toEqual(["movie"]);
-    expect(japanese.inferredMinVoteCount).toBe(50);
+    expect(japanese.inferredMinVoteCount).toBeNull();
     expect(japanese.queries.map(({ text }) => text)).toContain("邦画");
     expect(japanese.queries.some(({ text }) => text === "")).toBe(false);
     expect(korean.labels).toEqual(
@@ -80,9 +80,17 @@ describe("analyzeSearchQuery", () => {
     expect(korean.queries.map(({ text }) => text)).toContain("韓国映画");
     expect(korean.inferredOriginCountries).toEqual(["KR"]);
     expect(korean.inferredMediaTypes).toEqual(["movie"]);
-    expect(korean.inferredMinVoteCount).toBe(50);
+    expect(korean.inferredMinVoteCount).toBeNull();
     expect(korean.queries.map(({ text }) => text)).toContain("韓国映画 ドラマ");
     expect(korean.queries.map(({ text }) => text)).not.toContain("ドラマ");
+  });
+
+  it("does not hide low-vote new titles from regional mood searches", () => {
+    const plan = analyzeSearchQuery("邦画の感動系");
+
+    expect(plan.inferredOriginCountries).toEqual(["JP"]);
+    expect(plan.preferredEmotionalTags).toContain("感動");
+    expect(plan.inferredMinVoteCount).toBeNull();
   });
 
   it("understands implicit runtime, quality and provider constraints", () => {

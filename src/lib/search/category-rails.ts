@@ -12,6 +12,101 @@ import type { Movie, MovieRail } from "@/types/movie";
 
 const MAX_PER_RAIL = 18;
 
+const MOOD_RAIL_TAGS: Record<string, string[]> = {
+  cry: ["泣ける", "切ない", "感動", "エモい"],
+  laugh: ["笑える", "気楽", "テンポが良い"],
+  comfort: ["癒やし", "ほっこり", "心が整う", "チルい"],
+  refresh: ["スカッとする", "爽快", "爆音推奨"],
+};
+
+const RAIL_STRENGTH: Record<string, number> = {
+  editorial: 1_000,
+  "now-playing-movies": 900,
+  "current-dramas": 900,
+  "upcoming-movies": 880,
+  "tiktok-movies": 850,
+  "tiktok-dramas": 850,
+  cry: 800,
+  laugh: 800,
+  comfort: 800,
+  refresh: 800,
+  "high-rated": 700,
+  "japanese-movies": 650,
+  japan: 650,
+  korea: 650,
+  "trending-movies": 600,
+  "trending-dramas": 600,
+  streaming: 500,
+  mood: 450,
+  matches: 450,
+  movies: 200,
+  dramas: 200,
+  more: 100,
+};
+
+function moodStrength(movie: Movie, tags: string[]): number {
+  let strongest = 0;
+  for (const [tag, score] of Object.entries(movie.emotionScores ?? {})) {
+    if (
+      tags.some(
+        (preferred) => tag.includes(preferred) || preferred.includes(tag),
+      )
+    ) {
+      strongest = Math.max(strongest, Number(score) || 0);
+    }
+  }
+  if (strongest > 0) return strongest;
+  const matchedIndex = movie.emotionalTags.findIndex((tag) =>
+    tags.some(
+      (preferred) => tag.includes(preferred) || preferred.includes(tag),
+    ),
+  );
+  return matchedIndex < 0
+    ? 0
+    : Math.max(0.1, 1 - matchedIndex / Math.max(movie.emotionalTags.length, 1));
+}
+
+function railMatchStrength(rail: MovieRail, movie: Movie): number {
+  const base = RAIL_STRENGTH[rail.id] ?? 0;
+  const moodTags = MOOD_RAIL_TAGS[rail.id];
+  if (moodTags) return base + moodStrength(movie, moodTags) * 10;
+  if (rail.id.startsWith("tiktok-")) {
+    return base + Math.min(movie.socialSignals?.trendScore ?? 0, 100) / 10;
+  }
+  return base;
+}
+
+export function assignMoviesToStrongestRail(
+  rails: MovieRail[],
+  maxPerRail = MAX_PER_RAIL,
+): MovieRail[] {
+  const strongestByMovie = new Map<
+    string,
+    { railIndex: number; strength: number }
+  >();
+
+  rails.forEach((rail, railIndex) => {
+    for (const movie of uniqueById(rail.movies)) {
+      const strength = railMatchStrength(rail, movie);
+      const current = strongestByMovie.get(movie.id);
+      if (!current || strength > current.strength) {
+        strongestByMovie.set(movie.id, { railIndex, strength });
+      }
+    }
+  });
+
+  return rails
+    .map((rail, railIndex) => ({
+      ...rail,
+      movies: uniqueById(rail.movies)
+        .filter(
+          (movie) => strongestByMovie.get(movie.id)?.railIndex === railIndex,
+        )
+        .slice(0, maxPerRail),
+    }))
+    .filter((rail) => rail.movies.length > 0);
+}
+
 function uniqueById(movies: Movie[]): Movie[] {
   const seen = new Set<string>();
   return movies.filter((movie) => {
@@ -229,5 +324,8 @@ export function buildSearchRails(
     if (moreRail) rails.push(moreRail);
   }
 
-  return rails.filter((rail) => rail.movies.length > 0);
+  const nonEmptyRails = rails.filter((rail) => rail.movies.length > 0);
+  return emptyQuery
+    ? assignMoviesToStrongestRail(nonEmptyRails)
+    : nonEmptyRails;
 }

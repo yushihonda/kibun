@@ -531,7 +531,10 @@ export function analyzeSearchQuery(input: string): SearchPlan {
       : null;
   const inferredMinVoteCount =
     regionalIntents.length > 0 &&
-    (genericRecommendation || matchedProfiles.length > 0 || safeViewing)
+    genericRecommendation &&
+    matchedProfiles.length === 0 &&
+    !safeViewing &&
+    !/最近|新作|新しい|公開中|上映中/u.test(normalizedQuery)
       ? 50
       : null;
   if (inferredMinRating) labels.push("高評価");

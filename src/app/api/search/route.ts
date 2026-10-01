@@ -111,21 +111,35 @@ async function loadFastIntentBatches(
   const matchers: Array<{
     column: "emotional_tags" | "genres" | null;
     values: string[];
+    orderBy?: "popularity" | "vote_average";
   }> = [];
   if (emotionalTags.length) {
     matchers.push({ column: "emotional_tags", values: emotionalTags });
+    if (plan.inferredOriginCountries.length) {
+      matchers.push({
+        column: "emotional_tags",
+        values: emotionalTags,
+        orderBy: "vote_average",
+      });
+    }
   }
   if (genres.length) matchers.push({ column: "genres", values: genres });
   if (!matchers.length) matchers.push({ column: null, values: [] });
 
   const results = await Promise.all(
-    matchers.map(async ({ column, values }) => {
+    matchers.map(async ({ column, values, orderBy = "popularity" }) => {
       let query = supabase
         .from("movies")
         .select(FAST_SEARCH_FIELDS)
         .eq("adult", false)
-        .order("popularity", { ascending: false, nullsFirst: false })
+        .order(orderBy, { ascending: false, nullsFirst: false })
         .limit(candidateLimit);
+      if (orderBy !== "popularity") {
+        query = query.order("popularity", {
+          ascending: false,
+          nullsFirst: false,
+        });
+      }
       if (column) query = query.overlaps(column, values);
       if (filters.mediaTypes.length) {
         query = query.in("media_type", filters.mediaTypes);

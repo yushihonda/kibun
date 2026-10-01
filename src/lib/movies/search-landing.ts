@@ -10,7 +10,10 @@ import {
 } from "@/lib/discovery/ranking";
 import { loadCatalogMovies } from "@/lib/movies/catalog";
 import { PROVIDER_FILTERS } from "@/lib/providers/catalog";
-import { buildSearchRails } from "@/lib/search/category-rails";
+import {
+  assignMoviesToStrongestRail,
+  buildSearchRails,
+} from "@/lib/search/category-rails";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import type { Movie, MovieRail } from "@/types/movie";
 
@@ -32,10 +35,7 @@ function featuredRail(
   movies: Movie[],
   generatedAt: string,
 ): MovieRail | null {
-  const selected = movies.slice(0, MAX_LANDING_MOVIES_PER_RAIL);
-  return selected.length
-    ? { id, title, description, movies: selected, generatedAt }
-    : null;
+  return movies.length ? { id, title, description, movies, generatedAt } : null;
 }
 
 async function buildSearchLanding(now: Date): Promise<SearchLanding> {
@@ -162,12 +162,7 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
   const discovery = buildSearchRails(movies, null, {
     emptyQuery: true,
     now,
-  })
-    .filter((rail) => !featured.some((item) => item.id === rail.id))
-    .map((rail) => ({
-      ...rail,
-      movies: rail.movies.slice(0, MAX_LANDING_MOVIES_PER_RAIL),
-    }));
+  }).filter((rail) => !featured.some((item) => item.id === rail.id));
   const logoById = new Map(
     (providerResult.data ?? []).map((provider) => [
       Number(provider.tmdb_provider_id),
@@ -182,7 +177,11 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
       return logoPath ? [[provider.slug, logoPath]] : [];
     }),
   );
-  return { sections: [...featured, ...discovery], providerLogos };
+  const sections = assignMoviesToStrongestRail(
+    [...featured, ...discovery],
+    MAX_LANDING_MOVIES_PER_RAIL,
+  );
+  return { sections, providerLogos };
 }
 
 export async function loadPublicSearchLanding(): Promise<SearchLanding> {

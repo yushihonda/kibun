@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { SearchPlan } from "@/lib/search/query-intent";
-import { buildSearchRails } from "./category-rails";
+import {
+  assignMoviesToStrongestRail,
+  buildSearchRails,
+} from "./category-rails";
 import type { Movie } from "@/types/movie";
 import { analyzeSearchQuery } from "./query-intent";
 
@@ -20,6 +23,7 @@ const movie = (
   popularity: overrides.popularity ?? 10,
   genres: overrides.genres ?? [],
   emotionalTags: overrides.emotionalTags ?? [],
+  emotionScores: overrides.emotionScores,
   providers: overrides.providers ?? [],
   matchReasons: overrides.matchReasons,
   editorialComment: overrides.editorialComment,
@@ -52,6 +56,7 @@ describe("buildSearchRails", () => {
         emotionalTags: ["癒やし"],
         voteAverage: 7.8,
       }),
+      movie({ id: "4", title: "D", voteAverage: 8.2 }),
     ];
 
     const rails = buildSearchRails(movies, null, {
@@ -60,11 +65,35 @@ describe("buildSearchRails", () => {
     });
 
     expect(rails.map((rail) => rail.id)).toEqual(
-      expect.arrayContaining(["editorial", "high-rated", "cry"]),
+      expect.arrayContaining(["editorial", "high-rated", "laugh", "comfort"]),
     );
     expect(rails.find((rail) => rail.id === "editorial")?.movies[0].id).toBe(
       "1",
     );
+    const ids = rails.flatMap((rail) => rail.movies.map(({ id }) => id));
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("assigns a title to only its strongest category", () => {
+    const strongestCry = movie({
+      id: "mixed",
+      title: "笑って泣ける映画",
+      emotionalTags: ["笑える", "泣ける"],
+      emotionScores: { 笑える: 0.35, 泣ける: 0.92 },
+      voteAverage: 8.5,
+    });
+    const rails = assignMoviesToStrongestRail([
+      { id: "high-rated", title: "高評価", movies: [strongestCry] },
+      { id: "laugh", title: "笑える", movies: [strongestCry] },
+      { id: "cry", title: "泣ける", movies: [strongestCry] },
+    ]);
+
+    expect(rails).toEqual([
+      expect.objectContaining({
+        id: "cry",
+        movies: [expect.objectContaining({ id: "mixed" })],
+      }),
+    ]);
   });
 
   it("prioritizes mood rail when search plan is expanded", () => {
