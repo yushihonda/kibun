@@ -58,6 +58,13 @@ test("preferences, recommendations and cross-device shelf sync", async ({
   const testUserEmail = projectEmail(testInfo.project.name);
   const data = await generateMagicLink(admin, testUserEmail);
   expect(data.properties?.hashed_token).toBeTruthy();
+  expect(data.user?.id).toBeTruthy();
+
+  const resetResults = await Promise.all([
+    admin.from("user_movie_interactions").delete().eq("user_id", data.user.id),
+    admin.from("user_preferences").delete().eq("user_id", data.user.id),
+  ]);
+  expect(resetResults.map(({ error }) => error)).toEqual([null, null]);
 
   await page.goto(
     `/auth/callback?token_hash=${encodeURIComponent(data.properties!.hashed_token)}&type=email&next=/me`,
