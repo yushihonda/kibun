@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mapJapaneseProviders, mapTmdbMovie } from "../mapping.js";
-import { parseMediaTypes, parseSources } from "../pipeline.js";
+import {
+  parseMediaTypes,
+  parseSources,
+  parseSpecificItems,
+} from "../pipeline.js";
 import {
   backoffDelay,
   HttpError,
   isMissingHttpResource,
   isRetryableHttpError,
 } from "../retry.js";
-import { pageLimit, TmdbClient } from "../tmdb.js";
+import { pageEnd, pageLimit, TmdbClient } from "../tmdb.js";
 import type { TmdbDetails, TmdbVideo } from "../types.js";
 import { selectYouTubeVideo } from "../youtube.js";
 
@@ -175,6 +179,9 @@ describe("video and paging helpers", () => {
     expect(pageLimit(100, "2")).toBe(2);
     expect(pageLimit(800)).toBe(500);
     expect(() => pageLimit(10, "0")).toThrow();
+    expect(pageEnd(500, "250", 1)).toBe(250);
+    expect(pageEnd(500, "250", 251)).toBe(500);
+    expect(pageEnd(300, "250", 251)).toBe(300);
     expect(backoffDelay(2, 100, 10_000, () => 0)).toBe(200);
     expect(isRetryableHttpError(new TypeError("fetch failed"))).toBe(true);
     expect(isRetryableHttpError(new HttpError("bad request", 400))).toBe(false);
@@ -317,6 +324,13 @@ describe("video and paging helpers", () => {
     expect(parseMediaTypes("tv,tv")).toEqual(["tv"]);
     expect(() => parseMediaTypes("series")).toThrow(
       "Unknown SYNC_MEDIA_TYPES: series",
+    );
+    expect(parseSpecificItems("movie:12,tv:34,movie:12")).toEqual([
+      { mediaType: "movie", tmdbId: 12 },
+      { mediaType: "tv", tmdbId: 34 },
+    ]);
+    expect(() => parseSpecificItems("movie:nope")).toThrow(
+      "Invalid SYNC_TMDB_ITEMS",
     );
   });
 });

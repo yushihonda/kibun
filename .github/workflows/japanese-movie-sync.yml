@@ -33,10 +33,13 @@ jobs:
       SYNC_RUN_SOURCE: tmdb-japanese-movies
       EMOTION_AI_MAX_MOVIES: "0"
       EMOTION_AI_MAX_COST_USD: "0"
-      JAPANESE_CLASSIC_MIN_RATING: "7"
-      JAPANESE_CLASSIC_MIN_VOTES: "100"
-      JAPANESE_CLASSIC_POPULAR_MIN_RATING: "6.5"
-      JAPANESE_CLASSIC_POPULAR_MIN_VOTES: "150"
+      CATALOG_PRUNE_SCOPE: japanese-movies
+      CATALOG_CLASSIC_MIN_RATING: "7"
+      CATALOG_CLASSIC_MIN_VOTES: "100"
+      CATALOG_CLASSIC_POPULAR_MIN_RATING: "6.5"
+      CATALOG_CLASSIC_POPULAR_MIN_VOTES: "150"
+      CATALOG_CLASSIC_WIDELY_RATED_MIN_RATING: "6"
+      CATALOG_CLASSIC_WIDELY_RATED_MIN_VOTES: "1000"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -51,7 +54,7 @@ jobs:
         run: |
           cutoff="$(( $(date -u +%Y) - 3 ))-01-01"
           echo "SYNC_RELEASE_DATE_FROM=$cutoff" >> "$GITHUB_ENV"
-          echo "JAPANESE_MOVIE_CUTOFF=$cutoff" >> "$GITHUB_ENV"
+          echo "CATALOG_RELEASE_CUTOFF=$cutoff" >> "$GITHUB_ENV"
       - name: Sync recent Japanese movies with retries
         shell: bash
         run: |
@@ -62,8 +65,8 @@ jobs:
           exit 1
       - name: Remove old Japanese movies except classics and referenced titles
         env:
-          PRUNE_OLD_JAPANESE_MOVIES_APPLY: "true"
-        run: npm run prune:japanese-movies
+          PRUNE_OLD_CATALOG_APPLY: "true"
+        run: npm run prune:catalog
       - name: Data audit
         if: always()
         run: npm run audit:data

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sourceConfig } from "./tmdb";
+import { normalizedRuntime, sourceConfig } from "./tmdb";
 
 describe("TMDB source routing", () => {
   it("uses the current release feeds for films and TV", () => {
@@ -26,5 +26,14 @@ describe("TMDB source routing", () => {
         "primary_release_date.gte": "2023-01-01",
       },
     });
+  });
+});
+
+describe("TMDB runtime normalization", () => {
+  it("keeps realistic runtimes and rejects invalid provider values", () => {
+    expect(normalizedRuntime(120)).toBe(120);
+    expect(normalizedRuntime(0)).toBeNull();
+    expect(normalizedRuntime(2_640)).toBeNull();
+    expect(normalizedRuntime(6_250)).toBeNull();
   });
 });

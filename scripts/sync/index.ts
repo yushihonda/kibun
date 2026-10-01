@@ -2,6 +2,7 @@ import "../load-env";
 import {
   parseMediaTypes,
   parseSources,
+  parseSpecificItems,
   runSync,
   type SyncConfig,
 } from "./pipeline.js";
@@ -26,6 +27,10 @@ function configFromEnvironment(): SyncConfig {
   if (!Number.isInteger(concurrency) || concurrency < 1) {
     throw new Error("SYNC_CONCURRENCY must be a positive integer");
   }
+  const startPage = Number(process.env.SYNC_START_PAGE?.trim() || "1");
+  if (!Number.isInteger(startPage) || startPage < 1 || startPage > 500) {
+    throw new Error("SYNC_START_PAGE must be an integer from 1 to 500");
+  }
   const emotionAiMaxMovies = Number(
     process.env.EMOTION_AI_MAX_MOVIES?.trim() || "0",
   );
@@ -45,6 +50,7 @@ function configFromEnvironment(): SyncConfig {
     openAiApiKey: process.env.OPENAI_API_KEY?.trim(),
     openAiModel: process.env.OPENAI_MODEL?.trim(),
     maxPages: process.env.SYNC_MAX_PAGES?.trim(),
+    startPage,
     concurrency,
     sources: parseSources(process.env.SYNC_SOURCES),
     mediaTypes: parseMediaTypes(process.env.SYNC_MEDIA_TYPES),
@@ -55,6 +61,7 @@ function configFromEnvironment(): SyncConfig {
     runSource: process.env.SYNC_RUN_SOURCE?.trim() || undefined,
     releaseDateFrom: optionalDate("SYNC_RELEASE_DATE_FROM"),
     releaseDateTo: optionalDate("SYNC_RELEASE_DATE_TO"),
+    specificItems: parseSpecificItems(process.env.SYNC_TMDB_ITEMS),
   };
 }
 

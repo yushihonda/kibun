@@ -88,6 +88,9 @@ async function main() {
     const candidates = evaluationCase.judgments
       .map((judgment) => movieByTmdbId.get(judgment.tmdbId))
       .filter((movie): movie is Movie => Boolean(movie));
+    const missingMovies = evaluationCase.judgments
+      .filter((judgment) => !movieByTmdbId.has(judgment.tmdbId))
+      .map(({ tmdbId, title }) => ({ tmdbId, title }));
     const ranked = rankSearchBatchesWithScores(
       [
         {
@@ -113,6 +116,7 @@ async function main() {
       baseline: previous,
       judgedMoviesFound: candidates.length,
       expectedMovies: evaluationCase.judgments.length,
+      missingMovies,
       passes,
       top10: ranked.map(({ movie, reasons }) => ({
         tmdbId: movie.tmdbId,

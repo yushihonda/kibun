@@ -112,18 +112,32 @@ async function main() {
   const missingEmotionTags = movies.filter(
     (movie) => !movie.emotional_tags?.length,
   );
-  const japaneseMovies = movies.filter(
-    (movie) =>
-      movie.media_type === "movie" &&
-      (movie.sources?.includes("japan") ||
-        movie.origin_countries?.includes("JP") ||
-        movie.original_language === "ja"),
+  const isJapaneseTitle = (movie: MovieAuditRow) =>
+    movie.sources?.includes("japan") ||
+    movie.origin_countries?.includes("JP") ||
+    movie.original_language === "ja";
+  const catalogMovies = movies.filter((movie) => movie.media_type === "movie");
+  const dramas = movies.filter((movie) => movie.media_type === "tv");
+  const japaneseMovies = catalogMovies.filter(isJapaneseTitle);
+  const japaneseDramas = dramas.filter(isJapaneseTitle);
+  const internationalMovies = catalogMovies.filter(
+    (movie) => !isJapaneseTitle(movie),
   );
-  const recentJapaneseSince = new Date(Date.now() - 730 * 86_400_000)
+  const internationalDramas = dramas.filter((movie) => !isJapaneseTitle(movie));
+  const recentSince = new Date(Date.now() - 730 * 86_400_000)
     .toISOString()
     .slice(0, 10);
+  const recentMovies = catalogMovies.filter(
+    (movie) => movie.release_date && movie.release_date >= recentSince,
+  );
+  const recentDramas = dramas.filter(
+    (movie) => movie.release_date && movie.release_date >= recentSince,
+  );
   const recentJapaneseMovies = japaneseMovies.filter(
-    (movie) => movie.release_date && movie.release_date >= recentJapaneseSince,
+    (movie) => movie.release_date && movie.release_date >= recentSince,
+  );
+  const recentJapaneseDramas = japaneseDramas.filter(
+    (movie) => movie.release_date && movie.release_date >= recentSince,
   );
   const staleProviderChecks = movies.filter(
     (movie) =>
@@ -137,10 +151,16 @@ async function main() {
     thresholds: { providerStaleDays: 45 },
     totals: {
       titles: movies.length,
-      movies: movies.filter((movie) => movie.media_type === "movie").length,
-      dramas: movies.filter((movie) => movie.media_type === "tv").length,
+      movies: catalogMovies.length,
+      dramas: dramas.length,
+      internationalMovies: internationalMovies.length,
+      internationalDramas: internationalDramas.length,
       japaneseMovies: japaneseMovies.length,
+      japaneseDramas: japaneseDramas.length,
+      moviesReleasedLast2Years: recentMovies.length,
+      dramasReleasedLast2Years: recentDramas.length,
       japaneseMoviesReleasedLast2Years: recentJapaneseMovies.length,
+      japaneseDramasReleasedLast2Years: recentJapaneseDramas.length,
       approvedVideoRows: approvedVideos.count ?? 0,
       moviesWithApprovedVideos: moviesWithApprovedVideos ?? 0,
       providerRows,

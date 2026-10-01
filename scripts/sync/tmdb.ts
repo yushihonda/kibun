@@ -65,6 +65,20 @@ type RawTmdbDetails = RawTmdbListItem & {
   };
 };
 
+const MAX_RUNTIME_MINUTES = 600;
+
+export function normalizedRuntime(
+  runtime: number | null | undefined,
+): number | null {
+  return runtime !== null &&
+    runtime !== undefined &&
+    Number.isFinite(runtime) &&
+    runtime > 0 &&
+    runtime <= MAX_RUNTIME_MINUTES
+    ? runtime
+    : null;
+}
+
 export function sourceConfig(
   mediaType: MediaType,
   source: TmdbSource,
@@ -169,9 +183,9 @@ function normalizedDetails(
     ...person,
     job: "Creator",
   }));
-  const episodeRuntime = (item.episode_run_time ?? []).find(
-    (runtime) => Number.isFinite(runtime) && runtime > 0,
-  );
+  const episodeRuntime = (item.episode_run_time ?? [])
+    .map(normalizedRuntime)
+    .find((runtime): runtime is number => runtime !== null);
 
   return {
     ...listItem,
@@ -179,9 +193,7 @@ function normalizedDetails(
     runtime:
       mediaType === "tv"
         ? (episodeRuntime ?? null)
-        : item.runtime && item.runtime > 0
-          ? item.runtime
-          : null,
+        : normalizedRuntime(item.runtime),
     status: item.status ?? "",
     tagline: item.tagline ?? "",
     homepage: item.homepage ?? "",
@@ -317,4 +329,16 @@ export function pageLimit(totalPages: number, configured?: string): number {
     throw new Error("SYNC_MAX_PAGES must be a positive integer");
   }
   return Math.min(totalPages, parsed, 500);
+}
+
+export function pageEnd(
+  totalPages: number,
+  configured: string | undefined,
+  startPage: number,
+): number {
+  if (!Number.isInteger(startPage) || startPage < 1 || startPage > 500) {
+    throw new Error("SYNC_START_PAGE must be an integer from 1 to 500");
+  }
+  const pageCount = configured === undefined ? 500 : pageLimit(500, configured);
+  return Math.min(totalPages, 500, startPage + pageCount - 1);
 }

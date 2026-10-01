@@ -1,18 +1,28 @@
-name: Monthly movie and drama sync
+name: Monthly recent movie and drama catalog
 
 on:
   schedule:
     - cron: "0 3 1 * *"
+    - cron: "0 3 8 * *"
   workflow_dispatch:
     inputs:
       max_pages:
-        description: "Maximum pages per source"
+        description: "Number of pages per source"
         required: false
-        default: "20"
+        default: "250"
+      start_page:
+        description: "First TMDB page (1-500)"
+        required: false
+        default: "1"
+      prune:
+        description: "Remove old low-rated titles after sync"
+        type: boolean
+        required: false
+        default: false
       sources:
         description: "Comma-separated TMDB sources"
         required: false
-        default: "discover,popular,now_playing,upcoming,trending,japan,korea"
+        default: "discover"
       media_types:
         description: "Comma-separated TMDB media types (movie,tv)"
         required: false
@@ -29,21 +39,27 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       TMDB_BEARER_TOKEN: ${{ secrets.TMDB_BEARER_TOKEN }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      OPENAI_MODEL: gpt-4o-mini
-      EMOTION_AI_MAX_MOVIES: ${{ vars.EMOTION_AI_MAX_MOVIES || '0' }}
-      EMOTION_AI_MAX_COST_USD: ${{ vars.EMOTION_AI_MAX_COST_USD || '0' }}
-      SYNC_MAX_PAGES: ${{ inputs.max_pages || '20' }}
-      SYNC_SOURCES: ${{ inputs.sources || 'discover,popular,now_playing,upcoming,trending,japan,korea' }}
+      EMOTION_AI_MAX_MOVIES: "0"
+      EMOTION_AI_MAX_COST_USD: "0"
+      SYNC_MAX_PAGES: ${{ inputs.max_pages || '250' }}
+      SYNC_START_PAGE: ${{ inputs.start_page || (github.event.schedule == '0 3 8 * *' && '251') || '1' }}
+      SYNC_SOURCES: ${{ inputs.sources || 'discover' }}
       SYNC_MEDIA_TYPES: ${{ inputs.media_types || 'movie,tv' }}
-      SYNC_CONCURRENCY: "5"
-      SYNC_REFRESH_TRACKED: "true"
-      SYNC_RUN_SOURCE: "tmdb-monthly-catalog"
+      SYNC_CONCURRENCY: "8"
+      SYNC_REFRESH_TRACKED: "false"
+      SYNC_RUN_SOURCE: "tmdb-monthly-recent-catalog"
+      CATALOG_PRUNE_SCOPE: all
+      CATALOG_CLASSIC_MIN_RATING: "7"
+      CATALOG_CLASSIC_MIN_VOTES: "100"
+      CATALOG_CLASSIC_POPULAR_MIN_RATING: "6.5"
+      CATALOG_CLASSIC_POPULAR_MIN_VOTES: "150"
+      CATALOG_CLASSIC_WIDELY_RATED_MIN_RATING: "6"
+      CATALOG_CLASSIC_WIDELY_RATED_MIN_VOTES: "1000"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -53,11 +69,17 @@ jobs:
       - run: npm ci
       - name: Close interrupted runs
         run: npm run sync:close-stale
-      - name: Sync with retries
+      - name: Set rolling release cutoff
+        shell: bash
+        run: |
+          cutoff="$(( $(date -u +%Y) - 3 ))-01-01"
+          echo "SYNC_RELEASE_DATE_FROM=$cutoff" >> "$GITHUB_ENV"
+          echo "CATALOG_RELEASE_CUTOFF=$cutoff" >> "$GITHUB_ENV"
+      - name: Sync recent movies and dramas with retries
         shell: bash
         run: |
           for attempt in 1 2 3; do
-            if timeout 100m npm run sync:catalog; then
+            if timeout 150m npm run sync:catalog; then
               exit 0
             fi
             if [ "$attempt" -lt 3 ]; then
@@ -65,6 +87,11 @@ jobs:
             fi
           done
           exit 1
+      - name: Remove old low-rated titles except classics and referenced titles
+        if: ${{ github.event.schedule == '0 3 8 * *' || inputs.prune == true }}
+        env:
+          PRUNE_OLD_CATALOG_APPLY: "true"
+        run: npm run prune:catalog
       - name: Backfill deterministic emotions
         run: npm run backfill:emotions
       - name: Validate relevance corpus

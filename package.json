@@ -27,7 +27,7 @@
     "sync:close-stale": "tsx scripts/close-stale-sync-runs.ts",
     "sync:movies": "tsx scripts/sync/index.ts",
     "sync:catalog": "tsx scripts/sync/index.ts",
-    "prune:japanese-movies": "tsx scripts/prune-old-japanese-movies.ts",
+    "prune:catalog": "tsx scripts/prune-old-catalog.ts",
     "admin:promote": "tsx scripts/promote-admin.ts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",

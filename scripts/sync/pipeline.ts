@@ -1,7 +1,7 @@
 import { buildEmotionProfile, generateEmotionTags } from "./emotions.js";
 import { mapJapaneseProviders, mapTmdbMovie } from "./mapping.js";
 import { SyncStore } from "./supabase.js";
-import { pageLimit, TmdbClient } from "./tmdb.js";
+import { pageEnd, TmdbClient } from "./tmdb.js";
 import {
   isMissingHttpResource,
   isRetryableHttpError,
@@ -22,6 +22,7 @@ export interface SyncConfig {
   openAiApiKey?: string;
   openAiModel?: string;
   maxPages?: string;
+  startPage: number;
   concurrency: number;
   sources: TmdbSource[];
   mediaTypes: MediaType[];
@@ -31,6 +32,7 @@ export interface SyncConfig {
   runSource?: string;
   releaseDateFrom?: string;
   releaseDateTo?: string;
+  specificItems: Array<{ tmdbId: number; mediaType: MediaType }>;
 }
 
 const ESTIMATED_AI_COST_PER_MOVIE_USD = 0.0003;
@@ -66,6 +68,30 @@ export function parseMediaTypes(value: string | undefined): MediaType[] {
     throw new Error(`Unknown SYNC_MEDIA_TYPES: ${invalid.join(", ")}`);
   }
   return [...new Set(requested)] as MediaType[];
+}
+
+export function parseSpecificItems(
+  value: string | undefined,
+): Array<{ tmdbId: number; mediaType: MediaType }> {
+  if (!value?.trim()) return [];
+  const parsed = value.split(",").map((entry) => {
+    const item = entry.trim().toLowerCase();
+    const match = /^(movie|tv):(\d+)$/.exec(item);
+    if (!match || Number(match[2]) < 1) {
+      throw new Error(
+        `Invalid SYNC_TMDB_ITEMS entry: ${item}. Use movie:123 or tv:456`,
+      );
+    }
+    return {
+      mediaType: match[1] as MediaType,
+      tmdbId: Number(match[2]),
+    };
+  });
+  return [
+    ...new Map(
+      parsed.map((item) => [mediaKey(item.mediaType, item.tmdbId), item]),
+    ).values(),
+  ];
 }
 
 export async function runSync(config: SyncConfig): Promise<{
@@ -124,38 +150,58 @@ export async function runSync(config: SyncConfig): Promise<{
       failures.push({ message: errorMessage(error, "tracked movies") });
     }
 
-    for (const mediaType of config.mediaTypes) {
-      for (const source of config.sources) {
-        try {
-          const listFilters = {
-            releaseDateFrom: config.releaseDateFrom,
-            releaseDateTo: config.releaseDateTo,
-          };
-          const first = await tmdb.list(source, 1, mediaType, listFilters);
-          mergeMovies(discovered, first.results, source, mediaType);
-          const limit = pageLimit(first.total_pages, config.maxPages);
-          for (let page = 2; page <= limit; page += 1) {
-            try {
-              mergeMovies(
-                discovered,
-                (await tmdb.list(source, page, mediaType, listFilters)).results,
-                source,
-                mediaType,
-              );
-            } catch (error) {
-              failures.push({
-                mediaType,
-                source,
-                message: errorMessage(error, `page ${page}`),
-              });
+    if (config.specificItems.length) {
+      for (const { mediaType, tmdbId } of config.specificItems) {
+        discovered.set(mediaKey(mediaType, tmdbId), {
+          mediaType,
+          tmdbId,
+          sources: new Set(config.sources),
+        });
+      }
+    } else {
+      for (const mediaType of config.mediaTypes) {
+        for (const source of config.sources) {
+          try {
+            const listFilters = {
+              releaseDateFrom: config.releaseDateFrom,
+              releaseDateTo: config.releaseDateTo,
+            };
+            const first = await tmdb.list(
+              source,
+              config.startPage,
+              mediaType,
+              listFilters,
+            );
+            mergeMovies(discovered, first.results, source, mediaType);
+            const limit = pageEnd(
+              first.total_pages,
+              config.maxPages,
+              config.startPage,
+            );
+            for (let page = config.startPage + 1; page <= limit; page += 1) {
+              try {
+                mergeMovies(
+                  discovered,
+                  (await tmdb.list(source, page, mediaType, listFilters))
+                    .results,
+                  source,
+                  mediaType,
+                );
+              } catch (error) {
+                failures.push({
+                  mediaType,
+                  source,
+                  message: errorMessage(error, `page ${page}`),
+                });
+              }
             }
+          } catch (error) {
+            failures.push({
+              mediaType,
+              source,
+              message: errorMessage(error, "first page"),
+            });
           }
-        } catch (error) {
-          failures.push({
-            mediaType,
-            source,
-            message: errorMessage(error, "first page"),
-          });
         }
       }
     }
