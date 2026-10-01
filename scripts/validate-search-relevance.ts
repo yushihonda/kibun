@@ -30,6 +30,7 @@ async function main() {
   const { data, error } = await client
     .from("movies")
     .select("tmdb_id,title")
+    .eq("media_type", "movie")
     .in("tmdb_id", tmdbIds);
   if (error) throw error;
 

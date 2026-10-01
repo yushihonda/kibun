@@ -170,14 +170,14 @@ test("film and TV drama filters return the requested media type", async ({
 
   await expect(dramaFilter).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText(/^\d+件$/).first()).toBeVisible();
-  await expect(
-    page
-      .getByRole("region", { name: "ドラマ", exact: true })
-      .getByRole("button", {
-        name: "「ブレイキング・バッド」の詳細を見る",
-        exact: true,
-      }),
-  ).toBeVisible();
+  const dramaCards = page
+    .getByRole("region", { name: "ドラマ", exact: true })
+    .locator("[data-movie-id]");
+  await expect(dramaCards.first()).toBeVisible();
+  expect(await dramaCards.count()).toBeGreaterThan(0);
+  for (const card of await dramaCards.all()) {
+    await expect(card).toHaveAttribute("data-media-type", "tv");
+  }
   await expect(
     page.getByRole("button", {
       name: "「デューン 砂の惑星 PART2」の詳細を見る",
@@ -192,13 +192,13 @@ test("film and TV drama filters return the requested media type", async ({
   await expect(
     page
       .getByRole("region", { name: "映画", exact: true })
-      .getByRole("button")
+      .locator("[data-movie-id]")
       .first(),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", {
-      name: "「ブレイキング・バッド」の詳細を見る",
-      exact: true,
-    }),
-  ).toHaveCount(0);
+  const movieCards = page
+    .getByRole("region", { name: "映画", exact: true })
+    .locator("[data-movie-id]");
+  for (const card of await movieCards.all()) {
+    await expect(card).toHaveAttribute("data-media-type", "movie");
+  }
 });

@@ -82,6 +82,7 @@ export type Movie = {
   sources?: string[];
   trendingAt?: string;
   theatricalAt?: string;
+  lastSyncedAt?: string;
   providersCheckedAt?: string;
   providers: Provider[];
   video?: MovieVideo;

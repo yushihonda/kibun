@@ -1,7 +1,13 @@
 import "server-only";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { isNowPlayingTitle, theatricalScore } from "@/lib/discovery/ranking";
+import {
+  isNowPlayingTitle,
+  isRecentTitle,
+  isUpcomingTitle,
+  recentScore,
+  theatricalScore,
+} from "@/lib/discovery/ranking";
 import { loadCatalogMovies } from "@/lib/movies/catalog";
 import { PROVIDER_FILTERS } from "@/lib/providers/catalog";
 import { buildSearchRails } from "@/lib/search/category-rails";
@@ -39,11 +45,23 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const trendingSince = new Date(now.getTime() - 10 * 86_400_000).toISOString();
-  const [movies, providerResult] = await Promise.all([
+  const releaseDateFrom = new Date(now.getTime() - 180 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const releaseDateTo = new Date(now.getTime() + 90 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const [trendingMovies, recentMovies, providerResult] = await Promise.all([
     loadCatalogMovies(supabase, {
       limit: 120,
       orderBy: "trending_at",
       trendingSince,
+    }),
+    loadCatalogMovies(supabase, {
+      limit: 120,
+      orderBy: "release_date",
+      releaseDateFrom,
+      releaseDateTo,
     }),
     supabase
       .from("providers")
@@ -53,6 +71,13 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
         PROVIDER_FILTERS.flatMap((provider) => provider.tmdbProviderIds),
       ),
   ]);
+  const movies = [
+    ...new Map(
+      [...trendingMovies, ...recentMovies].map(
+        (movie) => [movie.id, movie] as const,
+      ),
+    ).values(),
+  ];
   const generatedAt = now.toISOString();
   const nowPlaying = [...movies]
     .filter(
@@ -72,17 +97,49 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
       generatedAt,
     ),
     featuredRail(
+      "current-dramas",
+      "新着・放送中のドラマ",
+      "直近に配信開始、または現在放送中と確認できたドラマ",
+      [...movies]
+        .filter(
+          (movie) =>
+            movie.mediaType === "tv" &&
+            (isUpcomingTitle(movie, now) || isRecentTitle(movie, now)),
+        )
+        .sort(
+          (a, b) =>
+            recentScore(b, now) - recentScore(a, now) ||
+            a.id.localeCompare(b.id),
+        ),
+      generatedAt,
+    ),
+    featuredRail(
+      "upcoming-movies",
+      "近日公開の映画",
+      "TMDBで日本向け近日公開として確認できた映画",
+      [...movies]
+        .filter(
+          (movie) => movie.mediaType === "movie" && isUpcomingTitle(movie, now),
+        )
+        .sort(
+          (a, b) =>
+            recentScore(b, now) - recentScore(a, now) ||
+            a.id.localeCompare(b.id),
+        ),
+      generatedAt,
+    ),
+    featuredRail(
       "trending-movies",
       "今週の話題映画",
       "TMDBの週間映画トレンドから選定",
-      movies.filter((movie) => movie.mediaType === "movie"),
+      trendingMovies.filter((movie) => movie.mediaType === "movie"),
       generatedAt,
     ),
     featuredRail(
       "trending-dramas",
       "今週の話題ドラマ",
       "TMDBの週間ドラマトレンドから選定",
-      movies.filter((movie) => movie.mediaType === "tv"),
+      trendingMovies.filter((movie) => movie.mediaType === "tv"),
       generatedAt,
     ),
   ].filter((rail): rail is MovieRail => Boolean(rail));

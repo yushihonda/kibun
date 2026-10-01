@@ -9,6 +9,7 @@ import {
   isNowPlayingTitle,
   isRecentTitle,
   isRecommendationEligible,
+  isUpcomingTitle,
   socialTrendBoost,
   weightedRating,
 } from "./ranking";
@@ -71,6 +72,26 @@ describe("discovery ranking", () => {
     expect(isFreshTrend(anticipated, now)).toBe(true);
     expect(isRecentTitle(anticipated, now)).toBe(true);
     expect(isRecentTitle(merelyPopular, now)).toBe(false);
+  });
+
+  it("accepts titles confirmed by a fresh upcoming or on-the-air feed", () => {
+    const upcoming = title({
+      releaseDate: "2026-08-28",
+      voteAverage: 0,
+      voteCount: 0,
+      popularity: 30,
+      sources: ["upcoming"],
+      lastSyncedAt: "2026-08-06T00:00:00Z",
+    });
+
+    expect(isUpcomingTitle(upcoming, now)).toBe(true);
+    expect(isRecentTitle(upcoming, now)).toBe(true);
+    expect(
+      isUpcomingTitle(
+        { ...upcoming, lastSyncedAt: "2026-07-01T00:00:00Z" },
+        now,
+      ),
+    ).toBe(false);
   });
 
   it("requires age, rating and substantial votes for perennial favorites", () => {

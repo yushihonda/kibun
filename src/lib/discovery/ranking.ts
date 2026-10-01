@@ -53,10 +53,25 @@ export function isFreshTrend(movie: Movie, now = new Date()): boolean {
 export function isRecentTitle(movie: Movie, now = new Date()): boolean {
   const age = releaseAgeDays(movie, now);
   if (age === null || age < -45 || age > 180) return false;
-  if (age < 0) return isFreshTrend(movie, now) && movie.popularity >= 80;
+  if (age < 0) {
+    return (
+      (isFreshTrend(movie, now) && movie.popularity >= 80) ||
+      (isUpcomingTitle(movie, now) && movie.popularity >= 20)
+    );
+  }
   return (
     movie.voteAverage >= 6.2 && voteCount(movie) >= voteFloor(movie, 80, 40)
   );
+}
+
+export function isUpcomingTitle(movie: Movie, now = new Date()): boolean {
+  if (!movie.sources?.includes("upcoming")) return false;
+  const syncedAt = dateValue(movie.lastSyncedAt);
+  if (syncedAt === null) return false;
+  const feedAge = now.getTime() - syncedAt;
+  if (feedAge < -DAY_MS || feedAge > 3 * DAY_MS) return false;
+  const releaseAge = releaseAgeDays(movie, now);
+  return releaseAge !== null && releaseAge >= -90 && releaseAge <= 30;
 }
 
 export function isNowPlayingTitle(movie: Movie, now = new Date()): boolean {

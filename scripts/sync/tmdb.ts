@@ -60,7 +60,10 @@ type RawTmdbDetails = RawTmdbListItem & {
   };
 };
 
-function sourceConfig(mediaType: MediaType, source: TmdbSource): SourceConfig {
+export function sourceConfig(
+  mediaType: MediaType,
+  source: TmdbSource,
+): SourceConfig {
   const kind = mediaType === "tv" ? "tv" : "movie";
   if (source === "discover") {
     return {
@@ -73,6 +76,11 @@ function sourceConfig(mediaType: MediaType, source: TmdbSource): SourceConfig {
   if (source === "now_playing") {
     return {
       path: mediaType === "tv" ? "/tv/airing_today" : "/movie/now_playing",
+    };
+  }
+  if (source === "upcoming") {
+    return {
+      path: mediaType === "tv" ? "/tv/on_the_air" : "/movie/upcoming",
     };
   }
   const country = source === "japan" ? "JP" : "KR";

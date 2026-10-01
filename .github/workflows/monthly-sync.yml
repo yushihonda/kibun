@@ -12,7 +12,7 @@ on:
       sources:
         description: "Comma-separated TMDB sources"
         required: false
-        default: "discover,popular,now_playing,japan,korea"
+        default: "discover,popular,now_playing,upcoming,trending,japan,korea"
       media_types:
         description: "Comma-separated TMDB media types (movie,tv)"
         required: false
@@ -39,10 +39,11 @@ jobs:
       EMOTION_AI_MAX_MOVIES: ${{ vars.EMOTION_AI_MAX_MOVIES || '0' }}
       EMOTION_AI_MAX_COST_USD: ${{ vars.EMOTION_AI_MAX_COST_USD || '0' }}
       SYNC_MAX_PAGES: ${{ inputs.max_pages || '20' }}
-      SYNC_SOURCES: ${{ inputs.sources || 'discover,popular,now_playing,japan,korea' }}
+      SYNC_SOURCES: ${{ inputs.sources || 'discover,popular,now_playing,upcoming,trending,japan,korea' }}
       SYNC_MEDIA_TYPES: ${{ inputs.media_types || 'movie,tv' }}
       SYNC_CONCURRENCY: "5"
       SYNC_REFRESH_TRACKED: "true"
+      SYNC_RUN_SOURCE: "tmdb-monthly-catalog"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6

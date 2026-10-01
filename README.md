@@ -8,7 +8,7 @@
 - Web: Next.js 16 + Cloudflare Workers（OpenNext）
 - DB / Auth: Supabase Free
 - 検索: Supabase PostgreSQL + PGroonga + pg_trgm
-- 映画データ: TMDB APIから8,191件を同期済み（承認済み動画あり6,695件、感情タグ付与7,873件、2026-08-06監査）
+- 映画・ドラマデータ: TMDB APIから10,396件を同期済み（映画8,740件、ドラマ1,656件、承認済み動画あり8,209件、2026-10-01監査）
 - 本番の `/api/search` がデモではなくSupabase実データを返すことを確認済み
 - TOPフィード: 承認済みYouTube予告編がある実作品だけを表示
 - Googleログイン: OAuthアプリを本番公開済み（全Googleユーザー向け、データアクセス検証不要）
@@ -90,7 +90,9 @@ SYNC_CONCURRENCY=3 \
 npm run sync:movies
 ```
 
-`SYNC_MAX_PAGES` はTMDBの世界向け `discover`、`popular`、`now_playing` と、日本映画専用 `japan`、韓国映画専用 `korea` の各一覧に対する上限です。指定を外すと処理件数と実行時間が大きくなるため、本番全件同期の前に段階的に増やしてください。`OPENAI_API_KEY` を設定しなければ感情タグ生成を省略し、API費用を発生させずに同期できます。
+`SYNC_MAX_PAGES` はTMDBの世界向け `discover`、`popular`、`trending`、映画の上映中・ドラマの本日放送を扱う `now_playing`、映画の近日公開・ドラマの放送中を扱う `upcoming` と、日本作品専用 `japan`、韓国作品専用 `korea` の各一覧に対する上限です。指定を外すと処理件数と実行時間が大きくなるため、本番全件同期の前に段階的に増やしてください。`OPENAI_API_KEY` を設定しなければ感情タグ生成を省略し、API費用を発生させずに同期できます。
+
+GitHub Actionsの `Daily movie and drama trends` は、週間トレンドを各3ページ、上映中・本日放送・近日公開・放送中を各5ページ、毎日無料のTMDB APIから同期します。一覧取得後に削除されたTMDB作品の404は安全にスキップし、一時的な通信エラーだけを最大3回再試行します。
 
 日本・韓国映画だけを既存データへ追加する場合は、追跡済みの全作品を再取得せずに差分バックフィルできます。
 
@@ -125,7 +127,7 @@ TMDBに予告編がない作品へ無関係な動画は割り当てません。T
 
 ## 検索
 
-`/api/search` はSupabaseの `search_movies` RPCを呼び出します。PGroongaの日本語全文検索とpg_trgmの類似度検索を組み合わせ、次の条件を扱います。
+`/api/search` は、認識済みの気分検索ではGINインデックス済みの感情タグ・ジャンルから候補を直接取得し、タイトル・配信先・TikTok話題検索などではSupabaseの `search_movies` RPCを呼び出します。PGroongaの日本語全文検索とpg_trgmの類似度検索も組み合わせ、次の条件を扱います。
 
 - タイトル、原題、概要、ジャンル、感情タグ
 - 制作国と原語に基づく「邦画」「日本映画」「韓国映画」「韓流」検索
@@ -158,7 +160,7 @@ DOTENV_CONFIG_PATH=.env.local npm run test:search-quality
 DOTENV_CONFIG_PATH=.env.local npm run bench:search
 ```
 
-2026-08-06時点で「泣ける」「笑える」「癒やされる」「怖くない」はすべてPrecision@10 = 1.0です。自然文展開は最大6候補、DBへの同時RPCは2件に制限し、Supabase Freeへの突発負荷を抑えます。
+2026-08-06時点で「泣ける」「笑える」「癒やされる」「怖くない」はすべてPrecision@10 = 1.0です。自然文の認識済み気分は高速なタグ候補検索を使い、それ以外の検索展開は上位3候補までを並列実行して待ち時間とSupabase負荷を抑えます。検索イベントの保存はレスポンス送信後に行います。
 
 ## Cloudflare Workersへ公開
 

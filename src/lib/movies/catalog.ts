@@ -82,7 +82,6 @@ type ProviderJoinRow = {
 export type CatalogMovie = Movie & {
   voteCount: number;
   createdAt: string;
-  lastSyncedAt?: string;
 };
 
 const image = (path: string | null, size: "w780" | "w1280") =>
@@ -137,6 +136,8 @@ export async function loadCatalogMovies(
       | "theatrical_at";
     trendingSince?: string;
     theatricalSince?: string;
+    releaseDateFrom?: string;
+    releaseDateTo?: string;
   },
 ): Promise<CatalogMovie[]> {
   const limit = Math.min(Math.max(options?.limit ?? 240, 1), 500);
@@ -164,6 +165,12 @@ export async function loadCatalogMovies(
   }
   if (options?.theatricalSince) {
     query = query.gte("theatrical_at", options.theatricalSince);
+  }
+  if (options?.releaseDateFrom) {
+    query = query.gte("release_date", options.releaseDateFrom);
+  }
+  if (options?.releaseDateTo) {
+    query = query.lte("release_date", options.releaseDateTo);
   }
 
   const { data, error } = await query;

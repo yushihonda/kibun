@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ResilientImage as Image } from "@/components/resilient-image";
 
 const GENRES = [
@@ -46,6 +47,7 @@ export function PersonalizationSettings({
   initialFavoriteMovieIds: string[];
   movieChoices: ChoiceMovie[];
 }) {
+  const router = useRouter();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [genres, setGenres] = useState(initialGenres);
   const [emotions, setEmotions] = useState(initialEmotions);
@@ -99,8 +101,10 @@ export function PersonalizationSettings({
       return;
     }
     const response = await fetch("/api/account", { method: "DELETE" });
-    if (response.ok) window.location.assign("/");
-    else setMessage("アカウントを削除できませんでした");
+    if (response.ok) {
+      router.replace("/");
+      router.refresh();
+    } else setMessage("アカウントを削除できませんでした");
   };
 
   return (

@@ -16,11 +16,11 @@ export class SyncStore {
     });
   }
 
-  async startRun(): Promise<string> {
+  async startRun(source = "tmdb-catalog"): Promise<string> {
     const { data, error } = await this.client
       .from("sync_runs")
       .insert({
-        source: "tmdb-monthly-catalog",
+        source,
         status: "running",
         started_at: new Date().toISOString(),
       })
@@ -125,6 +125,8 @@ export class SyncStore {
       emotion_tags,
       emotional_scores,
       runtime_minutes,
+      trending_at,
+      theatrical_at,
       ...movieFields
     } = movie;
     const { error } = await this.client.from("movies").upsert(
@@ -138,6 +140,8 @@ export class SyncStore {
         tmdb_genres: genres,
         ai_emotion_tags: emotion_tags,
         emotional_scores,
+        ...(trending_at ? { trending_at } : {}),
+        ...(theatrical_at ? { theatrical_at } : {}),
       },
       { onConflict: "media_type,tmdb_id" },
     );

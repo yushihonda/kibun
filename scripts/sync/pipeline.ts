@@ -2,7 +2,11 @@ import { buildEmotionProfile, generateEmotionTags } from "./emotions.js";
 import { mapJapaneseProviders, mapTmdbMovie } from "./mapping.js";
 import { SyncStore } from "./supabase.js";
 import { pageLimit, TmdbClient } from "./tmdb.js";
-import { isRetryableHttpError, withRetry } from "./retry.js";
+import {
+  isMissingHttpResource,
+  isRetryableHttpError,
+  withRetry,
+} from "./retry.js";
 import {
   TMDB_MEDIA_TYPES,
   TMDB_SOURCES,
@@ -24,6 +28,7 @@ export interface SyncConfig {
   refreshTracked: boolean;
   emotionAiMaxMovies: number;
   emotionAiMaxCostUsd: number;
+  runSource?: string;
 }
 
 const ESTIMATED_AI_COST_PER_MOVIE_USD = 0.0003;
@@ -79,7 +84,7 @@ export async function runSync(config: SyncConfig): Promise<{
     string,
     { tmdbId: number; mediaType: MediaType; sources: Set<TmdbSource> }
   >();
-  const runId = await store.startRun();
+  const runId = await store.startRun(config.runSource);
   let succeeded = 0;
   let aiEnriched = 0;
   let aiEstimatedCostUsd = 0;
@@ -95,7 +100,8 @@ export async function runSync(config: SyncConfig): Promise<{
           (source): source is TmdbSource =>
             knownSources.has(source) &&
             source !== "trending" &&
-            source !== "now_playing",
+            source !== "now_playing" &&
+            source !== "upcoming",
         );
         const key = mediaKey(tracked.mediaType, tracked.tmdbId);
         const metadata = {
@@ -224,6 +230,12 @@ export async function runSync(config: SyncConfig): Promise<{
           ]);
           succeeded += 1;
         } catch (error) {
+          if (isMissingHttpResource(error)) {
+            console.warn(
+              `TMDB ${mediaType}/${tmdbId} disappeared after discovery; skipping`,
+            );
+            return;
+          }
           failures.push({ mediaType, tmdbId, message: errorMessage(error) });
         }
       },

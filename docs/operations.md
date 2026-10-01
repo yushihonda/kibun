@@ -1,5 +1,17 @@
 # KIBUN 運用・復旧手順
 
+## 日次カタログ同期
+
+GitHub Actionsの `Daily movie and drama trends` は毎日01:20 UTCに実行する。無料のTMDB APIだけを使い、映画・ドラマの週間トレンドを各3ページ、上映中映画・本日放送ドラマ・近日公開映画・放送中ドラマを各5ページ同期する。AI感情生成は無効のままにし、一覧取得後にTMDBから削除された作品の404はスキップする。通信障害やレート制限による失敗は各ステップを最大3回再試行する。
+
+必須のGitHub Secrets:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `TMDB_BEARER_TOKEN`
+
+手動復旧ではActionsの `Run workflow` を実行するか、同じ設定で `npm run sync:catalog` を実行する。正常時は `sync_runs.source = 'tmdb-daily-catalog'`、`failed_count = 0` になる。
+
 ## 月次同期
 
 GitHub Actionsの `Monthly movie sync` は毎月1日03:00 UTCに実行する。手動実行では `max_pages` と `sources` を変更できる。同期は再実行可能なupsertで、最大3回まで待機時間を増やして再試行する。失敗時は `sync-failure` Issueを作成し、データ監査JSONをartifactへ保存する。

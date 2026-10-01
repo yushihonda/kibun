@@ -24,8 +24,9 @@ export type SearchMovieRow = {
   tmdb_directors?: Array<{ id: number; name: string }> | null;
   tmdb_collection_id?: number | null;
   providers_checked_at?: string | null;
-  providers: Provider[] | null;
-  video: Movie["video"] | null;
+  last_synced_at?: string | null;
+  providers?: Provider[] | null;
+  video?: Movie["video"] | null;
 };
 
 const image = (path: string | null, size: "w780" | "w1280") =>
@@ -55,6 +56,7 @@ export function mapSearchMovie(row: SearchMovieRow): Movie {
     directors: row.tmdb_directors ?? undefined,
     collectionId: row.tmdb_collection_id ?? undefined,
     providersCheckedAt: row.providers_checked_at ?? undefined,
+    lastSyncedAt: row.last_synced_at ?? undefined,
     providers: normalizeProviders(row.providers ?? []),
     video: row.video ?? undefined,
   };

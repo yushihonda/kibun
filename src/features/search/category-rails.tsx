@@ -49,6 +49,7 @@ function CategoryRail({
               className="w-[38vw] max-w-[160px] shrink-0 snap-start text-left sm:w-[140px]"
               aria-label={`「${movie.title}」の詳細を見る`}
               data-movie-id={movie.id}
+              data-media-type={movie.mediaType}
             >
               <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-zinc-200 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg">
                 <Image

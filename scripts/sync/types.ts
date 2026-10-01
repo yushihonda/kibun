@@ -23,6 +23,7 @@ export const TMDB_SOURCES = [
   "discover",
   "popular",
   "now_playing",
+  "upcoming",
   "trending",
   "japan",
   "korea",

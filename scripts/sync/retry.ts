@@ -56,3 +56,6 @@ export class HttpError extends Error {
 export const isRetryableHttpError = (error: unknown): boolean =>
   error instanceof TypeError ||
   (error instanceof HttpError && (error.status === 429 || error.status >= 500));
+
+export const isMissingHttpResource = (error: unknown): boolean =>
+  error instanceof HttpError && error.status === 404;

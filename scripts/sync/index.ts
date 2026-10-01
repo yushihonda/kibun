@@ -43,6 +43,7 @@ function configFromEnvironment(): SyncConfig {
       process.env.SYNC_REFRESH_TRACKED?.trim().toLowerCase() !== "false",
     emotionAiMaxMovies,
     emotionAiMaxCostUsd,
+    runSource: process.env.SYNC_RUN_SOURCE?.trim() || undefined,
   };
 }
 

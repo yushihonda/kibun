@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mapJapaneseProviders, mapTmdbMovie } from "../mapping.js";
 import { parseMediaTypes, parseSources } from "../pipeline.js";
-import { backoffDelay, HttpError, isRetryableHttpError } from "../retry.js";
+import {
+  backoffDelay,
+  HttpError,
+  isMissingHttpResource,
+  isRetryableHttpError,
+} from "../retry.js";
 import { pageLimit, TmdbClient } from "../tmdb.js";
 import type { TmdbDetails, TmdbVideo } from "../types.js";
 import { selectYouTubeVideo } from "../youtube.js";
@@ -173,6 +178,7 @@ describe("video and paging helpers", () => {
     expect(backoffDelay(2, 100, 10_000, () => 0)).toBe(200);
     expect(isRetryableHttpError(new TypeError("fetch failed"))).toBe(true);
     expect(isRetryableHttpError(new HttpError("bad request", 400))).toBe(false);
+    expect(isMissingHttpResource(new HttpError("not found", 404))).toBe(true);
   });
 
   it("uses dedicated origin filters for Japanese and Korean movies", async () => {
@@ -299,6 +305,7 @@ describe("video and paging helpers", () => {
       "discover",
       "popular",
       "now_playing",
+      "upcoming",
       "trending",
       "japan",
       "korea",

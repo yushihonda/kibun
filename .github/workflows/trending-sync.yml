@@ -20,9 +20,9 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       TMDB_BEARER_TOKEN: ${{ secrets.TMDB_BEARER_TOKEN }}
-      SYNC_MAX_PAGES: "2"
       SYNC_CONCURRENCY: "3"
       SYNC_REFRESH_TRACKED: "false"
+      SYNC_RUN_SOURCE: "tmdb-daily-catalog"
       EMOTION_AI_MAX_MOVIES: "0"
       EMOTION_AI_MAX_COST_USD: "0"
     steps:
@@ -36,9 +36,23 @@ jobs:
         env:
           SYNC_SOURCES: trending
           SYNC_MEDIA_TYPES: movie,tv
-        run: npm run sync:catalog
-      - name: Sync films currently in theaters
+          SYNC_MAX_PAGES: "3"
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm run sync:catalog; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
+          done
+          exit 1
+      - name: Sync current and upcoming releases
         env:
-          SYNC_SOURCES: now_playing
-          SYNC_MEDIA_TYPES: movie
-        run: npm run sync:catalog
+          SYNC_SOURCES: now_playing,upcoming
+          SYNC_MEDIA_TYPES: movie,tv
+          SYNC_MAX_PAGES: "5"
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm run sync:catalog; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
+          done
+          exit 1
