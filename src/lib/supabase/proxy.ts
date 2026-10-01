@@ -1,4 +1,3 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfig } from "./config";
 import { hasSupabaseAuthCookie } from "./auth-cookie";
@@ -35,6 +34,7 @@ export async function updateSupabaseSession(request: NextRequest) {
     return anonymousResponse;
   }
 
+  const { createServerClient } = await import("@supabase/ssr");
   let response = makeResponse();
   const supabase = createServerClient(config.url, config.publishableKey, {
     cookies: {

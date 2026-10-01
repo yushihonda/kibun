@@ -5,7 +5,7 @@ import { loadHomeFeed } from "@/lib/movies/home-feed";
 import { loadPublicSearchLanding } from "@/lib/movies/search-landing";
 
 const PUBLIC_FEED_TTL_MS = 5 * 60 * 1_000;
-const PUBLIC_HOME_MOVIE_LIMIT = 36;
+const PUBLIC_HOME_MOVIE_LIMIT = 24;
 
 type HomeFeed = Awaited<ReturnType<typeof loadHomeFeed>>;
 

@@ -8,7 +8,11 @@ function defaultCache(): Cache | null {
 }
 
 function cacheRequest(key: string): Request {
-  return new Request(`https://kibun.internal/cache/${key}`);
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://kibun.kibun-jp.workers.dev";
+  return new Request(
+    new URL(`/__edge-cache/${encodeURIComponent(key)}`, origin),
+  );
 }
 
 export async function readEdgeJson<T>(key: string): Promise<T | null> {
