@@ -1,4 +1,4 @@
-import type { Movie } from "@/types/movie";
+import type { MediaType, Movie } from "@/types/movie";
 import {
   findSocialSignalMatch,
   socialSignalMatchReason,
@@ -38,6 +38,7 @@ export type SearchPlan = {
   inferredMinVoteCount: number | null;
   inferredProviderSlugs: string[];
   inferredOriginCountries: string[];
+  inferredMediaTypes: MediaType[];
   expanded: boolean;
 };
 
@@ -413,12 +414,14 @@ const regionalMatchers = [
     label: "邦画",
     query: "邦画",
     country: "JP",
+    mediaType: "movie",
     pattern: /邦画|日本映画|日本の(?:映画|作品)/u,
   },
   {
     label: "韓国映画",
     query: "韓国映画",
     country: "KR",
+    mediaType: "movie",
     pattern: /韓国(?:系|映画|作品)|韓流|k[- ]?(?:movie|film)/iu,
   },
 ] as const;
@@ -541,6 +544,9 @@ export function analyzeSearchQuery(input: string): SearchPlan {
     .filter(({ pattern }) => pattern.test(normalizedQuery))
     .map(({ slug }) => slug);
   const inferredOriginCountries = regionalIntents.map(({ country }) => country);
+  const inferredMediaTypes = [
+    ...new Set(regionalIntents.map(({ mediaType }) => mediaType)),
+  ];
 
   const queryCandidates: PlannedQuery[] = originalQuery
     ? [{ text: originalQuery, weight: 8, source: "literal" }]
@@ -631,6 +637,7 @@ export function analyzeSearchQuery(input: string): SearchPlan {
     inferredMinVoteCount,
     inferredProviderSlugs,
     inferredOriginCountries,
+    inferredMediaTypes,
     expanded: hasInterpretation || queries.length > 1,
   };
 }

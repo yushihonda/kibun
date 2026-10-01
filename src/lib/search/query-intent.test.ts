@@ -70,6 +70,7 @@ describe("analyzeSearchQuery", () => {
 
     expect(japanese.labels).toContain("邦画");
     expect(japanese.inferredOriginCountries).toEqual(["JP"]);
+    expect(japanese.inferredMediaTypes).toEqual(["movie"]);
     expect(japanese.inferredMinVoteCount).toBe(50);
     expect(japanese.queries.map(({ text }) => text)).toContain("邦画");
     expect(japanese.queries.some(({ text }) => text === "")).toBe(false);
@@ -78,6 +79,7 @@ describe("analyzeSearchQuery", () => {
     );
     expect(korean.queries.map(({ text }) => text)).toContain("韓国映画");
     expect(korean.inferredOriginCountries).toEqual(["KR"]);
+    expect(korean.inferredMediaTypes).toEqual(["movie"]);
     expect(korean.inferredMinVoteCount).toBe(50);
     expect(korean.queries.map(({ text }) => text)).toContain("韓国映画 ドラマ");
     expect(korean.queries.map(({ text }) => text)).not.toContain("ドラマ");

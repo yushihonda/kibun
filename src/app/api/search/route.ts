@@ -382,6 +382,12 @@ export async function GET(request: NextRequest) {
   const effectiveProviders = filters.providers.length
     ? filters.providers
     : plan.inferredProviderSlugs;
+  const effectiveFilters = {
+    ...filters,
+    mediaTypes: filters.mediaTypes.length
+      ? filters.mediaTypes
+      : plan.inferredMediaTypes,
+  };
   const providerSlugs = expandProviderSlugs(effectiveProviders);
   const maxRuntime =
     filters.maxRuntime === null
@@ -429,7 +435,7 @@ export async function GET(request: NextRequest) {
       ? loadFastIntentBatches(
           supabase,
           plan,
-          filters,
+          effectiveFilters,
           maxRuntime,
           minRating,
           candidateLimit,
@@ -438,7 +444,7 @@ export async function GET(request: NextRequest) {
           supabase,
           plannedQueries,
           plan,
-          filters,
+          effectiveFilters,
           providerSlugs,
           maxRuntime,
           minRating,
@@ -510,7 +516,7 @@ export async function GET(request: NextRequest) {
   const editorial = await editorialPromise;
   const demoFilters = plan.expanded
     ? {
-        ...filters,
+        ...effectiveFilters,
         query: "",
         providers: effectiveProviders,
         maxRuntime,
@@ -518,7 +524,7 @@ export async function GET(request: NextRequest) {
         limit: 100,
         offset: 0,
       }
-    : filters;
+    : effectiveFilters;
   const demoHits = filterDemoMovies(demoMovies, demoFilters);
   const rankedDemoHits = plan.expanded
     ? rankSearchBatchesWithScores(
