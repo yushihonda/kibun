@@ -432,14 +432,29 @@ export async function GET(request: NextRequest) {
       providerSlugs.length === 0 &&
       filters.offerTypes.length === 0;
     const searchPromise = canUseFastIntentSearch
-      ? loadFastIntentBatches(
-          supabase,
-          plan,
-          effectiveFilters,
-          maxRuntime,
-          minRating,
-          candidateLimit,
-        )
+      ? Promise.all([
+          loadFastIntentBatches(
+            supabase,
+            plan,
+            effectiveFilters,
+            maxRuntime,
+            minRating,
+            candidateLimit,
+          ),
+          loadRpcSearchBatches(
+            supabase,
+            plannedQueries.filter(({ source }) => source === "literal"),
+            plan,
+            effectiveFilters,
+            providerSlugs,
+            maxRuntime,
+            minRating,
+            candidateLimit,
+          ),
+        ]).then(([intentBatches, literalBatches]) => [
+          ...intentBatches,
+          ...literalBatches,
+        ])
       : loadRpcSearchBatches(
           supabase,
           plannedQueries,
