@@ -40,8 +40,8 @@ const fallbackQuery: PlannedQuery = {
 const SEARCH_RPC_CONCURRENCY = 3;
 const SEARCH_RPC_MAX_QUERIES = 3;
 const FAST_INTENT_LITERAL_MIN_LENGTH = 9;
-const SEARCH_HYDRATION_BUFFER = 72;
-const SEARCH_HYDRATION_MINIMUM = 120;
+const SEARCH_HYDRATION_BUFFER = 36;
+const SEARCH_HYDRATION_MINIMUM = 60;
 const socialIntentPattern = /tiktok|ティックトック|話題|バズ|口コミ/iu;
 const FAST_SEARCH_FIELDS =
   "id,tmdb_id,media_type,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,popularity,genres,emotional_tags";
@@ -113,17 +113,15 @@ async function loadFastIntentBatches(
   const matchers: Array<{
     column: "emotional_tags" | "genres" | null;
     values: string[];
-    orderBy?: "popularity" | "vote_average";
+    orderBy?: "popularity" | "release_date";
   }> = [];
   if (emotionalTags.length) {
     matchers.push({ column: "emotional_tags", values: emotionalTags });
-    if (plan.inferredOriginCountries.length) {
-      matchers.push({
-        column: "emotional_tags",
-        values: emotionalTags,
-        orderBy: "vote_average",
-      });
-    }
+    matchers.push({
+      column: "emotional_tags",
+      values: emotionalTags,
+      orderBy: "release_date",
+    });
   }
   if (genres.length) matchers.push({ column: "genres", values: genres });
   if (!matchers.length) matchers.push({ column: null, values: [] });
@@ -176,6 +174,48 @@ async function loadFastIntentBatches(
       } satisfies SearchBatch<Movie>,
     ];
   });
+}
+
+function escapeIlikePattern(value: string): string {
+  return value.replace(/[\\%_]/gu, "\\$&");
+}
+
+async function loadDirectTitleBatch(
+  supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>,
+  query: PlannedQuery,
+  filters: SearchFilters,
+  maxRuntime: number | null,
+  minRating: number | null,
+): Promise<SearchBatch<Movie>[]> {
+  const pattern = `%${escapeIlikePattern(query.text)}%`;
+  const results = await Promise.all(
+    (["title", "original_title"] as const).map((column) => {
+      let request = supabase
+        .from("movies")
+        .select(FAST_SEARCH_FIELDS)
+        .eq("adult", false)
+        .ilike(column, pattern)
+        .order("popularity", { ascending: false, nullsFirst: false })
+        .limit(24);
+      if (filters.mediaTypes.length) {
+        request = request.in("media_type", filters.mediaTypes);
+      }
+      if (maxRuntime !== null) request = request.lte("runtime", maxRuntime);
+      if (minRating !== null) {
+        request = request.gte("vote_average", minRating);
+      }
+      return request;
+    }),
+  );
+  const movies = new Map<string, Movie>();
+  for (const { data, error } of results) {
+    if (error) continue;
+    for (const row of (data ?? []) as unknown as SearchMovieRow[]) {
+      const movie = mapSearchMovie(row);
+      movies.set(movie.id, movie);
+    }
+  }
+  return movies.size ? [{ query, movies: [...movies.values()] }] : [];
 }
 
 async function loadRpcSearchBatches(
@@ -421,6 +461,7 @@ export async function GET(request: NextRequest) {
     100,
     Math.max(60, filters.limit + filters.offset + 12),
   );
+  const fastIntentCandidateLimit = Math.min(candidateLimit, 36);
   const supabase = await createClient();
   const hasAuthSession = hasSupabaseAuthCookie(request.cookies.getAll());
   if (
@@ -454,6 +495,17 @@ export async function GET(request: NextRequest) {
       filters.query.trim().length >= FAST_INTENT_LITERAL_MIN_LENGTH
         ? plannedQueries.filter(({ source }) => source === "literal")
         : [];
+    const literalQuery = plannedQueries.find(
+      ({ source }) => source === "literal",
+    );
+    const canUseDirectTitleSearch =
+      !plan.expanded &&
+      Boolean(literalQuery) &&
+      filters.query.trim().length >= 3 &&
+      providerSlugs.length === 0 &&
+      filters.offerTypes.length === 0 &&
+      filters.tags.length === 0 &&
+      !filters.excludeWatched;
     const searchPromise = canUseFastIntentSearch
       ? Promise.all([
           loadFastIntentBatches(
@@ -462,7 +514,7 @@ export async function GET(request: NextRequest) {
             effectiveFilters,
             maxRuntime,
             minRating,
-            candidateLimit,
+            fastIntentCandidateLimit,
           ),
           loadRpcSearchBatches(
             supabase,
@@ -478,16 +530,37 @@ export async function GET(request: NextRequest) {
           ...intentBatches,
           ...literalBatches,
         ])
-      : loadRpcSearchBatches(
-          supabase,
-          plannedQueries,
-          plan,
-          effectiveFilters,
-          providerSlugs,
-          maxRuntime,
-          minRating,
-          candidateLimit,
-        );
+      : canUseDirectTitleSearch && literalQuery
+        ? loadDirectTitleBatch(
+            supabase,
+            literalQuery,
+            effectiveFilters,
+            maxRuntime,
+            minRating,
+          ).then((titleBatches) =>
+            titleBatches.length
+              ? titleBatches
+              : loadRpcSearchBatches(
+                  supabase,
+                  plannedQueries,
+                  plan,
+                  effectiveFilters,
+                  providerSlugs,
+                  maxRuntime,
+                  minRating,
+                  candidateLimit,
+                ),
+          )
+        : loadRpcSearchBatches(
+            supabase,
+            plannedQueries,
+            plan,
+            effectiveFilters,
+            providerSlugs,
+            maxRuntime,
+            minRating,
+            candidateLimit,
+          );
     const [batches, editorial, personalization] = await Promise.all([
       searchPromise,
       editorialPromise,
