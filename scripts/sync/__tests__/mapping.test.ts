@@ -181,7 +181,7 @@ describe("video and paging helpers", () => {
     expect(isMissingHttpResource(new HttpError("not found", 404))).toBe(true);
   });
 
-  it("uses dedicated origin filters for Japanese and Korean movies", async () => {
+  it("keeps Japanese co-productions while narrowing Korean movies", async () => {
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(
         new Response(JSON.stringify({ page: 1, total_pages: 1, results: [] }), {
@@ -199,7 +199,7 @@ describe("video and paging helpers", () => {
     const japan = new URL(String(fetchMock.mock.calls[0][0]));
     const korea = new URL(String(fetchMock.mock.calls[1][0]));
     expect(japan.searchParams.get("with_origin_country")).toBe("JP");
-    expect(japan.searchParams.get("with_original_language")).toBe("ja");
+    expect(japan.searchParams.has("with_original_language")).toBe(false);
     expect(korea.searchParams.get("with_origin_country")).toBe("KR");
     expect(korea.searchParams.get("with_original_language")).toBe("ko");
   });

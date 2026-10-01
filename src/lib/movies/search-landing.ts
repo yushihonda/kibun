@@ -51,26 +51,33 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
   const releaseDateTo = new Date(now.getTime() + 90 * 86_400_000)
     .toISOString()
     .slice(0, 10);
-  const [trendingMovies, recentMovies, providerResult] = await Promise.all([
-    loadCatalogMovies(supabase, {
-      limit: 120,
-      orderBy: "trending_at",
-      trendingSince,
-    }),
-    loadCatalogMovies(supabase, {
-      limit: 120,
-      orderBy: "release_date",
-      releaseDateFrom,
-      releaseDateTo,
-    }),
-    supabase
-      .from("providers")
-      .select("tmdb_provider_id,logo_path")
-      .in(
-        "tmdb_provider_id",
-        PROVIDER_FILTERS.flatMap((provider) => provider.tmdbProviderIds),
-      ),
-  ]);
+  const [trendingMovies, recentMovies, japaneseMovies, providerResult] =
+    await Promise.all([
+      loadCatalogMovies(supabase, {
+        limit: 120,
+        orderBy: "trending_at",
+        trendingSince,
+      }),
+      loadCatalogMovies(supabase, {
+        limit: 120,
+        orderBy: "release_date",
+        releaseDateFrom,
+        releaseDateTo,
+      }),
+      loadCatalogMovies(supabase, {
+        limit: 64,
+        orderBy: "popularity",
+        mediaTypes: ["movie"],
+        sources: ["japan"],
+      }),
+      supabase
+        .from("providers")
+        .select("tmdb_provider_id,logo_path")
+        .in(
+          "tmdb_provider_id",
+          PROVIDER_FILTERS.flatMap((provider) => provider.tmdbProviderIds),
+        ),
+    ]);
   const movies = [
     ...new Map(
       [...trendingMovies, ...recentMovies].map(
@@ -126,6 +133,13 @@ async function buildSearchLanding(now: Date): Promise<SearchLanding> {
             recentScore(b, now) - recentScore(a, now) ||
             a.id.localeCompare(b.id),
         ),
+      generatedAt,
+    ),
+    featuredRail(
+      "japanese-movies",
+      "邦画ピックアップ",
+      "日本で制作された人気映画からおすすめを厳選",
+      japaneseMovies,
       generatedAt,
     ),
     featuredRail(

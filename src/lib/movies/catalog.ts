@@ -138,6 +138,8 @@ export async function loadCatalogMovies(
     theatricalSince?: string;
     releaseDateFrom?: string;
     releaseDateTo?: string;
+    mediaTypes?: Array<"movie" | "tv">;
+    sources?: string[];
   },
 ): Promise<CatalogMovie[]> {
   const limit = Math.min(Math.max(options?.limit ?? 240, 1), 500);
@@ -160,6 +162,12 @@ export async function loadCatalogMovies(
     })
     .limit(limit);
   if (options?.movieIds?.length) query = query.in("id", options.movieIds);
+  if (options?.mediaTypes?.length) {
+    query = query.in("media_type", options.mediaTypes);
+  }
+  if (options?.sources?.length) {
+    query = query.contains("sources", options.sources);
+  }
   if (options?.trendingSince) {
     query = query.gte("trending_at", options.trendingSince);
   }

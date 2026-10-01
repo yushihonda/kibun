@@ -83,15 +83,23 @@ export function sourceConfig(
       path: mediaType === "tv" ? "/tv/on_the_air" : "/movie/upcoming",
     };
   }
-  const country = source === "japan" ? "JP" : "KR";
-  const language = source === "japan" ? "ja" : "ko";
+  if (source === "japan") {
+    return {
+      path: `/discover/${kind}`,
+      params: {
+        sort_by: "popularity.desc",
+        include_adult: false,
+        with_origin_country: "JP",
+      },
+    };
+  }
   return {
     path: `/discover/${kind}`,
     params: {
       sort_by: "popularity.desc",
       include_adult: false,
-      with_origin_country: country,
-      with_original_language: language,
+      with_origin_country: "KR",
+      with_original_language: "ko",
     },
   };
 }

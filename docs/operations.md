@@ -14,6 +14,8 @@ GitHub Actionsの `Daily movie and drama trends` は毎日01:20 UTCに実行す�
 
 ## 月次同期
 
+`Japanese movie catalog sync` は毎月15日04:00 UTCに、日本制作・日本語の映画だけを100ページ同期する。`SYNC_REFRESH_TRACKED=false` とAI無効設定により、他作品の再取得や有料AI APIの利用を避ける。手動実行時は `max_pages` を変更でき、正常時は `sync_runs.source = 'tmdb-japanese-movies'`、`failed_count = 0` になる。
+
 GitHub Actionsの `Monthly movie sync` は毎月1日03:00 UTCに実行する。手動実行では `max_pages` と `sources` を変更できる。同期は再実行可能なupsertで、最大3回まで待機時間を増やして再試行する。失敗時は `sync-failure` Issueを作成し、データ監査JSONをartifactへ保存する。
 
 必須のGitHub Secrets:

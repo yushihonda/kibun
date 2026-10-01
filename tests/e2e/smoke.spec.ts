@@ -69,6 +69,9 @@ test("feed and search are reachable", async ({ page, request }) => {
   await expect(
     page.getByRole("region", { name: "今週の話題ドラマ", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "邦画ピックアップ", exact: true }),
+  ).toBeVisible();
 
   const searchInput = page.getByPlaceholder(
     "例：金曜の夜、何も考えずスカッとしたい",

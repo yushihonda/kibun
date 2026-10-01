@@ -1,0 +1,62 @@
+name: Japanese movie catalog sync
+
+on:
+  schedule:
+    - cron: "0 4 15 * *"
+  workflow_dispatch:
+    inputs:
+      max_pages:
+        description: "Maximum Japanese movie pages"
+        required: false
+        default: "100"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: japanese-movie-catalog-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TMDB_BEARER_TOKEN: ${{ secrets.TMDB_BEARER_TOKEN }}
+      SYNC_SOURCES: japan
+      SYNC_MEDIA_TYPES: movie
+      SYNC_MAX_PAGES: ${{ inputs.max_pages || '100' }}
+      SYNC_CONCURRENCY: "8"
+      SYNC_REFRESH_TRACKED: "false"
+      SYNC_RUN_SOURCE: tmdb-japanese-movies
+      EMOTION_AI_MAX_MOVIES: "0"
+      EMOTION_AI_MAX_COST_USD: "0"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Close interrupted runs
+        run: npm run sync:close-stale
+      - name: Sync Japanese movies with retries
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 100m npm run sync:catalog; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 30)); fi
+          done
+          exit 1
+      - name: Data audit
+        if: always()
+        run: npm run audit:data
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: japanese-movie-data-audit-${{ github.run_id }}
+          path: .artifacts/data-audit.json
+          if-no-files-found: warn

@@ -25,6 +25,10 @@ type MovieAuditRow = {
   poster_path: string | null;
   backdrop_path: string | null;
   emotional_tags: string[];
+  original_language: string | null;
+  origin_countries: string[];
+  sources: string[];
+  release_date: string | null;
   last_synced_at: string | null;
   providers_checked_at: string | null;
 };
@@ -36,7 +40,7 @@ async function allMovies(client: SupabaseClient): Promise<MovieAuditRow[]> {
     const { data, error } = await client
       .from("movies")
       .select(
-        "id,tmdb_id,media_type,title,poster_path,backdrop_path,emotional_tags,last_synced_at,providers_checked_at",
+        "id,tmdb_id,media_type,title,poster_path,backdrop_path,emotional_tags,original_language,origin_countries,sources,release_date,last_synced_at,providers_checked_at",
       )
       .order("id")
       .range(from, from + pageSize - 1);
@@ -108,6 +112,19 @@ async function main() {
   const missingEmotionTags = movies.filter(
     (movie) => !movie.emotional_tags?.length,
   );
+  const japaneseMovies = movies.filter(
+    (movie) =>
+      movie.media_type === "movie" &&
+      (movie.sources?.includes("japan") ||
+        movie.origin_countries?.includes("JP") ||
+        movie.original_language === "ja"),
+  );
+  const recentJapaneseSince = new Date(Date.now() - 730 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const recentJapaneseMovies = japaneseMovies.filter(
+    (movie) => movie.release_date && movie.release_date >= recentJapaneseSince,
+  );
   const staleProviderChecks = movies.filter(
     (movie) =>
       !movie.providers_checked_at || movie.providers_checked_at < staleBefore,
@@ -122,6 +139,8 @@ async function main() {
       titles: movies.length,
       movies: movies.filter((movie) => movie.media_type === "movie").length,
       dramas: movies.filter((movie) => movie.media_type === "tv").length,
+      japaneseMovies: japaneseMovies.length,
+      japaneseMoviesReleasedLast2Years: recentJapaneseMovies.length,
       approvedVideoRows: approvedVideos.count ?? 0,
       moviesWithApprovedVideos: moviesWithApprovedVideos ?? 0,
       providerRows,

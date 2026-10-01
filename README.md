@@ -8,7 +8,7 @@
 - Web: Next.js 16 + Cloudflare Workers（OpenNext）
 - DB / Auth: Supabase Free
 - 検索: Supabase PostgreSQL + PGroonga + pg_trgm
-- 映画・ドラマデータ: TMDB APIから10,396件を同期済み（映画8,740件、ドラマ1,656件、承認済み動画あり8,209件、2026-10-01監査）
+- 映画・ドラマデータ: TMDB APIから12,011件を同期済み（映画10,355件、ドラマ1,656件、邦画2,218件、承認済み動画あり9,284件、2026-10-01監査）
 - 本番の `/api/search` がデモではなくSupabase実データを返すことを確認済み
 - TOPフィード: 承認済みYouTube予告編がある実作品だけを表示
 - Googleログイン: OAuthアプリを本番公開済み（全Googleユーザー向け、データアクセス検証不要）
@@ -93,6 +93,8 @@ npm run sync:movies
 `SYNC_MAX_PAGES` はTMDBの世界向け `discover`、`popular`、`trending`、映画の上映中・ドラマの本日放送を扱う `now_playing`、映画の近日公開・ドラマの放送中を扱う `upcoming` と、日本作品専用 `japan`、韓国作品専用 `korea` の各一覧に対する上限です。指定を外すと処理件数と実行時間が大きくなるため、本番全件同期の前に段階的に増やしてください。`OPENAI_API_KEY` を設定しなければ感情タグ生成を省略し、API費用を発生させずに同期できます。
 
 GitHub Actionsの `Daily movie and drama trends` は、週間トレンドを各3ページ、上映中・本日放送・近日公開・放送中を各5ページ、毎日無料のTMDB APIから同期します。一覧取得後に削除されたTMDB作品の404は安全にスキップし、一時的な通信エラーだけを最大3回再試行します。
+
+`Japanese movie catalog sync` は毎月15日に日本制作・日本語映画を100ページ（最大約2,000候補）同期します。AI感情タグ生成は無効にし、既存のTMDB・Supabase構成だけで邦画カタログを維持します。トップ画面には、この同期で確認できた作品から「邦画ピックアップ」を表示します。
 
 日本・韓国映画だけを既存データへ追加する場合は、追跡済みの全作品を再取得せずに差分バックフィルできます。
 
