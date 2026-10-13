@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { buildEmotionProfile } from "./sync/emotions.js";
 import { MANUAL_MOVIE_METADATA } from "./sync/manual-metadata.js";
 import type { TmdbDetails, TmdbGenre } from "./sync/types.js";
+import { describeError, retrySupabaseQuery } from "./supabase-query.js";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -100,11 +101,17 @@ async function main() {
     required("SUPABASE_SERVICE_ROLE_KEY"),
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
-  const pageSize = 500;
-  const { data: overrideData, error: overrideError } = await supabase
-    .from("movie_emotion_overrides")
-    .select("movie_id,tag,intensity");
-  if (overrideError) throw overrideError;
+  const pageSize = 250;
+  const concurrency = Math.max(
+    1,
+    Math.min(20, Number(process.env.EMOTION_BACKFILL_CONCURRENCY) || 5),
+  );
+  const force = process.env.EMOTION_BACKFILL_FORCE === "true";
+  const { data: overrideData } = await retrySupabaseQuery(
+    "load emotion overrides",
+    () =>
+      supabase.from("movie_emotion_overrides").select("movie_id,tag,intensity"),
+  );
   const overridesByMovie = new Map<string, Record<string, number>>();
   for (const row of (overrideData ?? []) as OverrideRow[]) {
     const scores = overridesByMovie.get(row.movie_id) ?? {};
@@ -113,20 +120,29 @@ async function main() {
   }
   let processed = 0;
   let tagged = 0;
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from("movies")
-      .select(
-        "id,tmdb_id,media_type,title,original_title,overview,release_date,poster_path,backdrop_path,genres,runtime,status,tagline,homepage,imdb_id,popularity,vote_average,vote_count,adult,original_language,origin_countries,emotional_scores,keywords",
-      )
-      .order("id")
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
+  let lastId: string | null = null;
+  for (;;) {
+    const { data } = await retrySupabaseQuery(
+      "load emotion backfill page",
+      () => {
+        let query = supabase
+          .from("movies")
+          .select(
+            "id,tmdb_id,media_type,title,original_title,overview,release_date,poster_path,backdrop_path,genres,runtime,status,tagline,homepage,imdb_id,popularity,vote_average,vote_count,adult,original_language,origin_countries,emotional_scores,keywords",
+          )
+          .order("id")
+          .limit(pageSize);
+        if (!force) query = query.is("emotion_updated_at", null);
+        if (lastId) query = query.gt("id", lastId);
+        return query;
+      },
+    );
     const rows = (data ?? []) as MovieRow[];
     if (!rows.length) break;
+    lastId = rows.at(-1)?.id ?? lastId;
 
     const updatedAt = new Date().toISOString();
-    await inParallel(rows, 20, async (row) => {
+    await inParallel(rows, concurrency, async (row) => {
       const profile = buildEmotionProfile(detailsFromRow(row), {
         existingScores: row.emotional_scores ?? {},
         databaseOverrides: overridesByMovie.get(row.id),
@@ -144,25 +160,31 @@ async function main() {
             alias !== row.title &&
             items.indexOf(alias) === index,
         );
-      const { error: updateError } = await supabase
-        .from("movies")
-        .update({
-          emotional_tags: profile.tags,
-          ai_emotion_tags: profile.tags,
-          emotional_scores: profile.scores,
-          emotion_source: profile.source,
-          emotion_updated_at: updatedAt,
-          aliases,
-        })
-        .eq("id", row.id);
-      if (updateError) throw updateError;
+      await retrySupabaseQuery(`update emotions for movie ${row.id}`, () =>
+        supabase
+          .from("movies")
+          .update({
+            emotional_tags: profile.tags,
+            ai_emotion_tags: profile.tags,
+            emotional_scores: profile.scores,
+            emotion_source: profile.source,
+            emotion_updated_at: updatedAt,
+            aliases,
+          })
+          .eq("id", row.id),
+      );
       processed += 1;
       if (profile.tags.length) tagged += 1;
     });
     console.log(JSON.stringify({ processed, tagged }));
     if (rows.length < pageSize) break;
   }
-  console.log(JSON.stringify({ processed, tagged, completed: true }, null, 2));
+  console.log(
+    JSON.stringify({ processed, tagged, force, completed: true }, null, 2),
+  );
 }
 
-void main();
+void main().catch((error) => {
+  console.error(describeError(error));
+  process.exitCode = 1;
+});

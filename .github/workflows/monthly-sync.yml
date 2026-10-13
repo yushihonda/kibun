@@ -92,15 +92,29 @@ jobs:
         env:
           PRUNE_OLD_CATALOG_APPLY: "true"
         run: npm run prune:catalog
-      - name: Backfill deterministic emotions
-        run: npm run backfill:emotions
+      - name: Backfill missing deterministic emotions
+        env:
+          EMOTION_BACKFILL_CONCURRENCY: "5"
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm run backfill:emotions; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
+          done
+          exit 1
       - name: Validate relevance corpus
         run: npm run validate:search-relevance
       - name: Precision regression
         run: npm run test:search-quality
       - name: Data audit
         if: always()
-        run: npm run audit:data
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm run audit:data; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
+          done
+          exit 1
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4

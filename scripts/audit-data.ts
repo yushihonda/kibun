@@ -2,6 +2,7 @@ import "./load-env";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { describeError, retrySupabaseQuery } from "./supabase-query.js";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -10,10 +11,9 @@ function required(name: string): string {
 }
 
 async function exactCount(client: SupabaseClient, table: string) {
-  const { count, error } = await client
-    .from(table)
-    .select("*", { count: "exact", head: true });
-  if (error) throw error;
+  const { count } = await retrySupabaseQuery(`count ${table}`, () =>
+    client.from(table).select("*", { count: "exact", head: true }),
+  );
   return count ?? 0;
 }
 
@@ -36,16 +36,21 @@ type MovieAuditRow = {
 async function allMovies(client: SupabaseClient): Promise<MovieAuditRow[]> {
   const rows: MovieAuditRow[] = [];
   const pageSize = 1_000;
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await client
-      .from("movies")
-      .select(
-        "id,tmdb_id,media_type,title,poster_path,backdrop_path,emotional_tags,original_language,origin_countries,sources,release_date,last_synced_at,providers_checked_at",
-      )
-      .order("id")
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
+  let lastId: string | null = null;
+  for (;;) {
+    const { data } = await retrySupabaseQuery("load movie audit page", () => {
+      let query = client
+        .from("movies")
+        .select(
+          "id,tmdb_id,media_type,title,poster_path,backdrop_path,emotional_tags,original_language,origin_countries,sources,release_date,last_synced_at,providers_checked_at",
+        )
+        .order("id")
+        .limit(pageSize);
+      if (lastId) query = query.gt("id", lastId);
+      return query;
+    });
     rows.push(...((data ?? []) as MovieAuditRow[]));
+    lastId = data?.at(-1)?.id ?? lastId;
     if ((data?.length ?? 0) < pageSize) break;
   }
   return rows;
@@ -71,34 +76,40 @@ async function main() {
     recentClosures,
   ] = await Promise.all([
     allMovies(client),
-    client
-      .from("movie_videos")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "approved"),
+    retrySupabaseQuery("count approved videos", () =>
+      client
+        .from("movie_videos")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "approved"),
+    ),
     exactCount(client, "movie_providers"),
     exactCount(client, "reviews"),
     exactCount(client, "user_movie_interactions"),
-    client
-      .from("sync_runs")
-      .select(
-        "id,status,started_at,finished_at,discovered_count,succeeded_count,failed_count,errors",
-      )
-      .order("started_at", { ascending: false })
-      .limit(12),
-    client
-      .from("provider_availability_history")
-      .select("id", { count: "exact", head: true })
-      .eq("is_available", false)
-      .gte("checked_at", recentClosureAfter),
+    retrySupabaseQuery("load recent sync runs", () =>
+      client
+        .from("sync_runs")
+        .select(
+          "id,status,started_at,finished_at,discovered_count,succeeded_count,failed_count,errors",
+        )
+        .order("started_at", { ascending: false })
+        .limit(12),
+    ),
+    retrySupabaseQuery("count recent provider closures", () =>
+      client
+        .from("provider_availability_history")
+        .select("id", { count: "exact", head: true })
+        .eq("is_available", false)
+        .gte("checked_at", recentClosureAfter),
+    ),
   ]);
-  if (approvedVideos.error) throw approvedVideos.error;
-  if (syncRuns.error) throw syncRuns.error;
-  if (recentClosures.error) throw recentClosures.error;
-  const { count: moviesWithApprovedVideos, error: videoError } = await client
-    .from("movie_videos")
-    .select("movie_id", { count: "exact", head: true })
-    .eq("status", "approved");
-  if (videoError) throw videoError;
+  const { count: moviesWithApprovedVideos } = await retrySupabaseQuery(
+    "count movies with approved videos",
+    () =>
+      client
+        .from("movie_videos")
+        .select("movie_id", { count: "exact", head: true })
+        .eq("status", "approved"),
+  );
 
   const tmdbIds = new Set<string>();
   const duplicateTmdbIds = new Set<string>();
@@ -222,4 +233,7 @@ async function main() {
   if (duplicateTmdbIds.size > 0) process.exitCode = 1;
 }
 
-void main();
+void main().catch((error) => {
+  console.error(describeError(error));
+  process.exitCode = 1;
+});

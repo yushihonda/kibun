@@ -125,6 +125,8 @@ DOTENV_CONFIG_PATH=.env.local npm run backfill:emotions
 DOTENV_CONFIG_PATH=.env.local npm run audit:data
 ```
 
+`backfill:emotions` は通常、感情タグ処理が未実行の作品だけを補完します。固定ルールや手動補正の変更後に全作品を再計算する場合だけ、`EMOTION_BACKFILL_FORCE=true` を付けて実行してください。月次同期では未処理分だけを低並列で補完し、一時的なSupabaseエラーを再試行します。
+
 TMDBに予告編がない作品へ無関係な動画は割り当てません。TOPは動画が確認できた作品だけをフィードへ採用し、全スライドで動画を再生できる状態を保ちます。
 
 ## 検索
