@@ -12,13 +12,14 @@ export async function GET() {
   }
   const { count, error } = await supabase
     .from("movies")
-    .select("id", { head: true, count: "exact" });
+    .select("id", { head: true, count: "planned" });
   const healthy = !error;
   return NextResponse.json(
     {
       status: healthy ? "ok" : "degraded",
       database: healthy ? "reachable" : "error",
       movies: count ?? null,
+      moviesCountAccuracy: "estimated",
       responseMs: Date.now() - startedAt,
       checkedAt: new Date().toISOString(),
     },
