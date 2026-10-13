@@ -16,6 +16,7 @@ import {
 } from "@/lib/discovery/ranking";
 import { loadCatalogMovies, type CatalogMovie } from "@/lib/movies/catalog";
 import { loadEditorialMovies } from "@/lib/movies/editorial";
+import { prioritizeHomeFeedSections } from "@/lib/movies/home-feed-priority";
 import { loadRecommendations } from "@/lib/recommendations/server";
 import type { Movie, MovieRail } from "@/types/movie";
 
@@ -445,7 +446,7 @@ export async function loadHomeFeed(
   }
 
   return {
-    sections,
+    sections: prioritizeHomeFeedSections(sections, { limit: 64 }),
     personalized: recommendationResult.personalized,
     generatedAt,
   };

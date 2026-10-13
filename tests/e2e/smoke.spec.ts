@@ -29,11 +29,9 @@ test("feed and search are reachable", async ({ page, request }) => {
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
   const playTrailer = page.getByRole("button", { name: "予告編を再生" });
-  await expect(playTrailer).toBeVisible();
-  await expect(page.getByTestId("feed-video-surface")).toHaveCount(0);
-  await playTrailer.click();
   const videoSurface = page.getByTestId("feed-video-surface").first();
   await expect(videoSurface).toBeAttached();
+  await expect(playTrailer).toHaveCount(0);
   const videoBox = await videoSurface.boundingBox();
   expect(videoBox?.width).toBeGreaterThanOrEqual(viewport!.width - 1);
   expect(videoBox?.height).toBeGreaterThanOrEqual(viewport!.height - 1);
@@ -147,6 +145,7 @@ test("reduced motion and basic accessible names are applied", async ({
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("feed-video-surface")).toHaveCount(0);
   const animated = page.locator(".animate-bounce");
   await expect(animated).toBeVisible();
   expect(

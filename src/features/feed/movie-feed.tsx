@@ -16,7 +16,14 @@ import {
 import { ResilientImage as Image } from "@/components/resilient-image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Brand } from "@/components/brand";
 import { ProviderBadge } from "@/components/provider-badge";
 import type { Movie, MovieRail } from "@/types/movie";
@@ -34,8 +41,43 @@ const compactNumber = new Intl.NumberFormat("ja-JP", {
   maximumFractionDigits: 1,
 });
 
-const INITIAL_FEED_ITEMS = 2;
-const FEED_ITEMS_INCREMENT = 6;
+const INITIAL_FEED_ITEMS = 4;
+const FEED_ITEMS_INCREMENT = 8;
+
+type NetworkConnection = {
+  saveData?: boolean;
+  addEventListener?: EventTarget["addEventListener"];
+  removeEventListener?: EventTarget["removeEventListener"];
+};
+
+function networkConnection(): NetworkConnection | undefined {
+  return (navigator as Navigator & { connection?: NetworkConnection })
+    .connection;
+}
+
+function subscribeToAutoplayPreference(onChange: () => void) {
+  const motionPreference = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  );
+  const connection = networkConnection();
+  motionPreference.addEventListener("change", onChange);
+  connection?.addEventListener?.("change", onChange);
+  return () => {
+    motionPreference.removeEventListener("change", onChange);
+    connection?.removeEventListener?.("change", onChange);
+  };
+}
+
+function autoplayPreference() {
+  return (
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
+    !networkConnection()?.saveData
+  );
+}
+
+function serverAutoplayPreference() {
+  return false;
+}
 
 function sentimentLabel(
   sentiment: NonNullable<Movie["socialSignals"]>["sentiment"],
@@ -697,7 +739,13 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
   const pendingScrollIndex = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(true);
-  const [videoPlaybackEnabled, setVideoPlaybackEnabled] = useState(false);
+  const autoplayEnabled = useSyncExternalStore(
+    subscribeToAutoplayPreference,
+    autoplayPreference,
+    serverAutoplayPreference,
+  );
+  const [manualPlaybackEnabled, setManualPlaybackEnabled] = useState(false);
+  const videoPlaybackEnabled = autoplayEnabled || manualPlaybackEnabled;
   const [selected, setSelected] = useState<Movie | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const feedEntries = useMemo(
@@ -863,7 +911,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
               <button
                 type="button"
                 onClick={() => {
-                  setVideoPlaybackEnabled(true);
+                  setManualPlaybackEnabled(true);
                   setMuted((value) => !value);
                 }}
                 className="rounded-full border border-white/15 bg-black/35 p-2 backdrop-blur-md"
@@ -955,13 +1003,13 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                   <div
                     data-testid="feed-video-surface"
                     data-video-platform="youtube"
-                    className="absolute inset-0 overflow-hidden bg-black"
+                    className="pointer-events-none absolute inset-0 overflow-hidden bg-black"
                   >
                     <YouTubePlayer
                       videoId={movie.video.videoId}
                       active
                       muted={muted}
-                      className="h-full w-full"
+                      className="absolute top-1/2 left-1/2 h-full w-auto min-w-full max-w-none -translate-x-1/2 -translate-y-1/2 aspect-video"
                     />
                   </div>
                 )}
@@ -971,7 +1019,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                   <div
                     data-testid="feed-video-surface"
                     data-video-platform="tiktok"
-                    className="absolute inset-0 overflow-hidden bg-black"
+                    className="pointer-events-none absolute inset-0 overflow-hidden bg-black"
                   >
                     <TikTokPlayer
                       videoId={movie.video.videoId}
@@ -986,7 +1034,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                 movie.video && (
                   <button
                     type="button"
-                    onClick={() => setVideoPlaybackEnabled(true)}
+                    onClick={() => setManualPlaybackEnabled(true)}
                     className="absolute top-1/2 left-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-white/25 bg-black/55 px-5 py-3 text-sm font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 hover:bg-black/70"
                     aria-label="予告編を再生"
                   >
@@ -1142,14 +1190,18 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
         )}
       </div>
 
-      <div className="fixed top-1/2 right-1.5 z-30 flex -translate-y-1/2 flex-col gap-1">
+      <div
+        className={`fixed top-1/2 right-1.5 z-30 flex -translate-y-1/2 flex-col ${
+          feedEntries.length > 24 ? "gap-0.5" : "gap-1"
+        }`}
+      >
         {feedEntries.map(({ movie, sectionId }, index) => (
           <button
             key={`${sectionId}:${movie.id}`}
             type="button"
             onClick={() => scrollToIndex(index)}
             aria-label={`${index + 1}本目へ`}
-            className={`h-5 w-0.5 rounded-full transition ${
+            className={`${feedEntries.length > 24 ? "h-1.5" : "h-5"} w-0.5 rounded-full transition ${
               index === activeIndex ? "bg-lime-300" : "bg-white/25"
             }`}
           />
