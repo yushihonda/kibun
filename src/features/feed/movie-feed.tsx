@@ -374,7 +374,7 @@ export function MovieDetails({
               {isNowPlayingTitle(movie) ? " ・ 上映中" : ""}
             </p>
             <h2 className="mt-1 text-2xl font-black">{movie.title}</h2>
-            <p className="mt-2 text-sm text-white/60">
+            <p className="mt-2 text-sm text-white/75">
               {movie.releaseDate.slice(0, 4)} ・ {formatRuntime(movie.runtime)}{" "}
               {movie.mediaType === "tv" ? "／話" : ""} ・ ★{" "}
               {movie.voteAverage.toFixed(1)}
@@ -414,7 +414,7 @@ export function MovieDetails({
               ))}
             </div>
             {searchQuery && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-white/60">
+              <div className="mt-3 flex items-center gap-2 text-xs text-white/75">
                 <span>この推薦は？</span>
                 <button
                   type="button"
@@ -489,7 +489,7 @@ export function MovieDetails({
                 </p>
                 <h3 className="mt-1 text-lg font-black">いまの口コミ</h3>
               </div>
-              <p className="text-[10px] text-white/45">
+              <p className="text-[10px] text-white/70">
                 {movie.socialSignals.latestPostAt?.slice(0, 10)} 最新投稿
               </p>
             </div>
@@ -498,19 +498,19 @@ export function MovieDetails({
                 <p className="text-lg font-black">
                   {compactNumber.format(movie.socialSignals.totalViews)}
                 </p>
-                <p className="text-[10px] text-white/50">再生</p>
+                <p className="text-[10px] text-white/70">再生</p>
               </div>
               <div className="rounded-xl bg-black/25 p-2">
                 <p className="text-lg font-black">
                   {movie.socialSignals.averageEngagementRate.toFixed(1)}%
                 </p>
-                <p className="text-[10px] text-white/50">反応率</p>
+                <p className="text-[10px] text-white/70">反応率</p>
               </div>
               <div className="rounded-xl bg-black/25 p-2">
                 <p className="text-sm font-black">
                   {sentimentLabel(movie.socialSignals.sentiment)}
                 </p>
-                <p className="text-[10px] text-white/50">反応傾向</p>
+                <p className="text-[10px] text-white/70">反応傾向</p>
               </div>
             </div>
             {movie.socialSignals.summary && (
@@ -558,7 +558,7 @@ export function MovieDetails({
                 ))}
               </div>
             )}
-            <p className="mt-3 text-[10px] leading-4 text-white/40">
+            <p className="mt-3 text-[10px] leading-4 text-white/70">
               公開投稿のメタデータを集計。投稿を選ぶとTikTokで開きます。
             </p>
           </section>
@@ -655,7 +655,7 @@ export function MovieDetails({
         {recommendations.length > 0 && (
           <section className="mt-8" aria-label="この作品が好きなら">
             <h3 className="text-lg font-black">この作品が好きなら</h3>
-            <p className="mt-1 text-xs text-white/50">
+            <p className="mt-1 text-xs text-white/70">
               ジャンル・気分・スタッフの共通点から選びました
             </p>
             <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
@@ -980,7 +980,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                     />
                   </div>
                 )}
-              <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black via-black/5 to-black/30" />
+              <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black via-black/15 to-black/40" />
               {!videoPlaybackEnabled &&
                 index === activeIndex &&
                 movie.video && (
@@ -1007,7 +1007,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                       {sectionDescription && (
                         <p
                           data-testid="feed-section-description"
-                          className="mt-1 text-xs text-white/55 max-md:hidden"
+                          className="mt-1 text-xs text-white/80 drop-shadow-md max-md:hidden"
                         >
                           {sectionDescription}
                         </p>
@@ -1038,7 +1038,7 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                       編集部: {movie.editorialComment}
                     </p>
                   )}
-                  <p className="mt-1 text-xs font-medium text-white/70 md:mt-2 md:text-sm">
+                  <p className="mt-1 text-xs font-medium text-white/85 drop-shadow-md md:mt-2 md:text-sm">
                     <span className="font-black text-white">
                       {movie.mediaType === "tv" ? "ドラマ" : "映画"}
                     </span>
@@ -1079,7 +1079,9 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                           variant="icon"
                         />
                       ))}
-                    <span className="text-white/45">Powered by JustWatch</span>
+                    <span className="text-white/75 drop-shadow-md">
+                      Powered by JustWatch
+                    </span>
                   </div>
                 </div>
 

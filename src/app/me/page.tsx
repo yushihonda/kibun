@@ -131,7 +131,7 @@ export default async function MyPage() {
                     ? `${user.user_metadata.full_name}さんの作品棚`
                     : "あなたの作品棚"}
               </h1>
-              <p className="mt-2 text-sm text-white/55">
+              <p className="mt-2 text-sm text-white/75">
                 {!supabase
                   ? "Supabaseを設定すると、作品棚を端末間で同期できます。"
                   : user
@@ -161,7 +161,7 @@ export default async function MyPage() {
               >
                 <Icon className="text-lime-300" size={19} />
                 <p className="mt-4 text-2xl font-black">{count}</p>
-                <p className="text-xs text-white/50">{label}</p>
+                <p className="text-xs text-white/75">{label}</p>
               </button>
             ))}
           </div>
@@ -170,7 +170,7 @@ export default async function MyPage() {
         <section className="mt-10">
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-xs font-bold tracking-widest text-white/40">
+              <p className="text-xs font-bold tracking-widest text-white/70">
                 RECENTLY WATCHED
               </p>
               <h2 className="mt-1 text-xl font-black">最近観た作品</h2>
@@ -192,7 +192,7 @@ export default async function MyPage() {
                       className="object-cover"
                     />
                   ) : (
-                    <div className="grid h-full place-items-center bg-white/5 text-xs text-white/40">
+                    <div className="grid h-full place-items-center bg-white/5 text-xs text-white/70">
                       NO IMAGE
                     </div>
                   )}
@@ -214,7 +214,7 @@ export default async function MyPage() {
               </article>
             ))}
             {!watched.length && (
-              <p className="col-span-full rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-white/45">
+              <p className="col-span-full rounded-2xl border border-dashed border-white/25 bg-white/[0.03] p-8 text-center text-sm text-white/75">
                 {user
                   ? "「見た」にした作品がここに並びます。"
                   : "ログインして作品棚を作りましょう。"}

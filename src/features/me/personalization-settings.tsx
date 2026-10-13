@@ -163,7 +163,7 @@ export function PersonalizationSettings({
 
       <fieldset className="mt-6" disabled={!enabled}>
         <legend className="text-sm font-bold">好きな作品</legend>
-        <p className="mt-1 text-xs text-white/45">
+        <p className="mt-1 text-xs text-white/70">
           3件以上選ぶと推薦が安定します。
         </p>
         <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">

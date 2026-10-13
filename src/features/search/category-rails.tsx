@@ -113,11 +113,11 @@ function CategoryRail({
                   {movie.matchReasons.join(" · ")}
                 </p>
               ) : movie.editorialComment ? (
-                <p className="mt-1 line-clamp-2 text-[11px] text-zinc-500">
+                <p className="mt-1 line-clamp-2 text-[11px] text-zinc-700">
                   編集部: {movie.editorialComment}
                 </p>
               ) : (
-                <p className="mt-1 truncate text-[11px] text-zinc-500">
+                <p className="mt-1 truncate text-[11px] text-zinc-700">
                   {movie.emotionalTags.slice(0, 2).map((tag) => `#${tag} `)}
                 </p>
               )}

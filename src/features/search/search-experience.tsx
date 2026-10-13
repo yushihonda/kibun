@@ -324,7 +324,7 @@ export function SearchExperience({
                   setRemoteRails(null);
                   setInterpretation([]);
                 }}
-                className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-zinc-400"
+                className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-zinc-500"
                 placeholder="例：金曜の夜、何も考えずスカッとしたい"
                 autoFocus
               />
@@ -481,7 +481,7 @@ export function SearchExperience({
       <div className="mx-auto max-w-6xl px-4 py-7">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold tracking-[0.2em] text-zinc-500">
+            <p className="text-xs font-bold tracking-[0.2em] text-zinc-700">
               {query ? "SEARCH RESULT" : "KIBUN SELECTION"}
             </p>
             <h1 className="mt-1 text-2xl font-black">
@@ -490,14 +490,14 @@ export function SearchExperience({
                 : "今の気分に刺さる映画・ドラマ"}
             </h1>
           </div>
-          <p className="text-xs font-semibold text-zinc-500">
+          <p className="text-xs font-semibold text-zinc-700">
             {movies.length}件
           </p>
         </div>
 
         {hasSearchInput && interpretationLabels.length > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-semibold text-zinc-500">
+            <span className="font-semibold text-zinc-700">
               こんな気分と解釈
             </span>
             {interpretationLabels.map((label) => (
@@ -530,7 +530,7 @@ export function SearchExperience({
             <h2 className="mt-4 font-black">
               ぴったりの作品が見つかりませんでした
             </h2>
-            <p className="mt-2 text-sm text-zinc-500">
+            <p className="mt-2 text-sm text-zinc-700">
               条件を少し減らすか、別の気分で検索してみてください。
             </p>
           </div>
@@ -548,7 +548,7 @@ export function SearchExperience({
             >
               前へ
             </button>
-            <span className="text-xs font-bold text-zinc-500">
+            <span className="text-xs font-bold text-zinc-700">
               {page + 1}ページ目
               {estimatedTotal > 0 ? ` / 推定${estimatedTotal}件` : ""}
             </span>

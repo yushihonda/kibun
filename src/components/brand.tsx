@@ -13,7 +13,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       </span>
       <span className="font-black tracking-[0.18em] text-white">KIBUN</span>
       {!compact && (
-        <span className="hidden text-xs text-white/60 sm:inline">
+        <span className="hidden text-xs text-white/75 sm:inline">
           気分で見つかる、次の一本。
         </span>
       )}
