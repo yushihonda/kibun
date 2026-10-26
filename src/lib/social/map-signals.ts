@@ -83,11 +83,15 @@ export function mapMovieSocialSignals(
     summary: row.summary ?? undefined,
     latestPostAt: row.latest_post_at ?? undefined,
     updatedAt: row.calculated_at,
-    featuredPosts: Array.isArray(row.featured_posts)
-      ? row.featured_posts.flatMap((post) => {
-          const mapped = postPreview(post);
-          return mapped ? [mapped] : [];
-        })
-      : [],
+    featuredPosts: mapFeaturedPosts(row.featured_posts),
   };
+}
+
+export function mapFeaturedPosts(value: unknown): SocialPostPreview[] {
+  return Array.isArray(value)
+    ? value.flatMap((post) => {
+        const mapped = postPreview(post);
+        return mapped ? [mapped] : [];
+      })
+    : [];
 }

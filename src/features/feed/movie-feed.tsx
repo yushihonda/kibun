@@ -27,7 +27,7 @@ import {
 } from "react";
 import { Brand } from "@/components/brand";
 import { ProviderBadge } from "@/components/provider-badge";
-import type { Movie, MovieRail } from "@/types/movie";
+import type { Movie, MovieRail, SocialPostPreview } from "@/types/movie";
 import { formatRuntime } from "@/lib/utils";
 import {
   isFreshSocialTrend,
@@ -181,6 +181,33 @@ export function MovieDetails({
   const trailerMuted = true;
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [feedback, setFeedback] = useState<boolean | null>(null);
+  const [loadedPosts, setLoadedPosts] = useState<{
+    movieId: string;
+    posts: SocialPostPreview[];
+  } | null>(null);
+  const featuredPosts = movie.socialSignals?.featuredPosts.length
+    ? movie.socialSignals.featuredPosts
+    : loadedPosts?.movieId === movie.id
+      ? loadedPosts.posts
+      : [];
+  const needsPosts =
+    Boolean(movie.socialSignals?.postCount) &&
+    !movie.socialSignals?.featuredPosts.length;
+
+  // Feeds omit TikTok post previews to stay small; fetch them on open.
+  useEffect(() => {
+    if (!needsPosts) return;
+    const controller = new AbortController();
+    void fetch(`/api/movies/${movie.id}/social`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { featuredPosts?: SocialPostPreview[] } | null) => {
+        if (data?.featuredPosts) {
+          setLoadedPosts({ movieId: movie.id, posts: data.featuredPosts });
+        }
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [movie.id, needsPosts]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   // Callers often pass an inline handler; reading it through a ref keeps a
   // parent re-render from refetching details and re-logging the view.
@@ -597,9 +624,9 @@ export function MovieDetails({
                 </span>
               ))}
             </div>
-            {movie.socialSignals.featuredPosts.length > 0 && (
+            {featuredPosts.length > 0 && (
               <div className="mt-4 space-y-2">
-                {movie.socialSignals.featuredPosts.map((post) => (
+                {featuredPosts.map((post) => (
                   <a
                     key={post.videoId}
                     href={post.url}

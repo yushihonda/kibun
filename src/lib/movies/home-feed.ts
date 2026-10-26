@@ -56,6 +56,11 @@ function toFeedMovie(movie: Movie): Movie {
   delete feedMovie.directors;
   delete feedMovie.keywords;
   delete feedMovie.aliases;
+  // TikTok post previews are the largest part of each title and only appear
+  // deep in the detail sheet, which loads them when it opens.
+  if (feedMovie.socialSignals) {
+    feedMovie.socialSignals = { ...feedMovie.socialSignals, featuredPosts: [] };
+  }
   return feedMovie;
 }
 
