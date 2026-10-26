@@ -8,8 +8,11 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
+import {
+  LazyMovieDetails as MovieDetails,
+  usePreloadMovieDetails,
+} from "@/features/feed/lazy-movie-details";
 import { CategoryRails } from "@/features/search/category-rails";
 import { ProviderLogo } from "@/components/provider-badge";
 import { buildSearchRails } from "@/lib/search/category-rails";
@@ -37,10 +40,6 @@ type SearchResponse = {
   } | null;
 };
 
-const MovieDetails = dynamic(() =>
-  import("@/features/feed/movie-feed").then((module) => module.MovieDetails),
-);
-
 const quickFilters = [
   { label: "映画", key: "movie" },
   { label: "ドラマ", key: "tv" },
@@ -61,6 +60,7 @@ export function SearchExperience({
   initialRails?: MovieRail[];
   providerLogos?: Record<string, string>;
 }) {
+  usePreloadMovieDetails();
   const [query, setQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [remoteMovies, setRemoteMovies] = useState<Movie[] | null>(null);

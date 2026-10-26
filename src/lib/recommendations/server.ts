@@ -1,7 +1,8 @@
 import "server-only";
 
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { loadCatalogMovies } from "@/lib/movies/catalog";
+import { readEdgeJson, writeEdgeJson } from "@/lib/cache/edge-json";
+import { loadCatalogMovies, type CatalogMovie } from "@/lib/movies/catalog";
 import {
   buildPreferenceProfile,
   recommendMovies,
@@ -22,7 +23,10 @@ type EventRow = {
   query: string | null;
 };
 
-async function loadCandidatePool(supabase: SupabaseClient, now: Date) {
+async function loadCandidatePool(
+  supabase: SupabaseClient,
+  now: Date,
+): Promise<{ movies: CatalogMovie[]; complete: boolean }> {
   const trendingSince = new Date(now.getTime() - 10 * 86_400_000).toISOString();
   const { data: socialRows } = await supabase
     .from("movie_social_signals")
@@ -34,7 +38,9 @@ async function loadCandidatePool(supabase: SupabaseClient, now: Date) {
     .order("trend_score", { ascending: false })
     .limit(80);
   const socialMovieIds = (socialRows ?? []).map((row) => String(row.movie_id));
-  const groups = await Promise.all([
+  // Each group is a large query that can hit the statement timeout under
+  // load; the others still make a usable pool.
+  const groups = await Promise.allSettled([
     loadCatalogMovies(supabase, {
       limit: 240,
       orderBy: "popularity",
@@ -59,11 +65,64 @@ async function loadCandidatePool(supabase: SupabaseClient, now: Date) {
         })
       : Promise.resolve([]),
   ]);
-  return [
-    ...new Map(
-      groups.flat().map((movie) => [movie.id, movie] as const),
-    ).values(),
-  ];
+  const loaded = groups.flatMap((group) =>
+    group.status === "fulfilled" ? [group.value] : [],
+  );
+  if (!loaded.length) {
+    throw (groups[0] as PromiseRejectedResult).reason;
+  }
+  return {
+    movies: [
+      ...new Map(
+        loaded.flat().map((movie) => [movie.id, movie] as const),
+      ).values(),
+    ],
+    complete: loaded.length === groups.length,
+  };
+}
+
+// The pool is the same for every viewer and costs several large catalog
+// queries, so it is shared; personal signals are still applied per request.
+// The catalog itself only changes with the daily sync.
+const CANDIDATE_POOL_CACHE_KEY = "recommendation-candidates-v1";
+const CANDIDATE_POOL_TTL_SECONDS = 30 * 60;
+// A pool missing a timed-out group is retried soon instead of kept for long.
+const PARTIAL_POOL_TTL_SECONDS = 60;
+
+let cachedPool: { value: CatalogMovie[]; expiresAt: number } | null = null;
+let pendingPool: Promise<CatalogMovie[]> | null = null;
+
+function loadSharedCandidatePool(supabase: SupabaseClient, now: Date) {
+  if (cachedPool && cachedPool.expiresAt > Date.now()) {
+    return Promise.resolve(cachedPool.value);
+  }
+  if (pendingPool) return pendingPool;
+  pendingPool = readEdgeJson<CatalogMovie[]>(CANDIDATE_POOL_CACHE_KEY)
+    .then(async (edgeValue) => {
+      if (edgeValue?.length) {
+        return { movies: edgeValue, ttl: CANDIDATE_POOL_TTL_SECONDS };
+      }
+      const { movies, complete } = await loadCandidatePool(supabase, now);
+      if (complete) {
+        await writeEdgeJson(
+          CANDIDATE_POOL_CACHE_KEY,
+          movies,
+          CANDIDATE_POOL_TTL_SECONDS,
+        );
+      }
+      return {
+        movies,
+        ttl: complete ? CANDIDATE_POOL_TTL_SECONDS : PARTIAL_POOL_TTL_SECONDS,
+      };
+    })
+    .then(({ movies, ttl }) => {
+      cachedPool = { value: movies, expiresAt: Date.now() + ttl * 1_000 };
+      return movies;
+    })
+    .finally(() => {
+      pendingPool = null;
+    });
+  return pendingPool;
 }
 
 export async function loadRecommendations(
@@ -110,7 +169,7 @@ export async function loadRecommendations(
           .order("created_at", { ascending: false })
           .limit(80)
       : Promise.resolve({ data: [] }),
-    loadCandidatePool(supabase, now),
+    loadSharedCandidatePool(supabase, now),
   ]);
 
   const rows = (interactionRows ?? []) as InteractionRow[];

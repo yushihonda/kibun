@@ -1,9 +1,12 @@
 "use client";
 
 import { Heart, MessageCircle } from "lucide-react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState } from "react";
+import {
+  LazyMovieDetails as MovieDetails,
+  usePreloadMovieDetails,
+} from "@/features/feed/lazy-movie-details";
 import { ResilientImage as Image } from "@/components/resilient-image";
 import {
   formatRelative,
@@ -11,10 +14,6 @@ import {
 } from "@/features/community/comment-section";
 import type { CommunityComment } from "@/lib/community/comments";
 import type { Movie } from "@/types/movie";
-
-const MovieDetails = dynamic(() =>
-  import("@/features/feed/movie-feed").then((module) => module.MovieDetails),
-);
 
 export function CommentPreviewList({
   comments,
@@ -27,6 +26,7 @@ export function CommentPreviewList({
   boardNames?: Record<string, string>;
   empty: string;
 }) {
+  usePreloadMovieDetails();
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
   if (!comments.length) {

@@ -64,7 +64,7 @@ jobs:
       - name: Warm public pages
         shell: bash
         run: |
-          for path in / /search; do
+          for path in / /search "/api/recommendations?limit=8"; do
             curl --fail --silent --show-error --retry 3 --max-time 30 \
               "https://kibun.kibun-jp.workers.dev${path}" > /dev/null
           done

@@ -300,7 +300,7 @@ async function hydrateSearchMetadata(
       supabase
         .from("movies")
         .select(
-          "id,vote_count,sources,trending_at,theatrical_at,last_synced_at,emotional_scores,providers_checked_at",
+          "id,vote_count,sources,trending_at,theatrical_at,last_synced_at,emotional_scores,providers_checked_at,latest_season_number,latest_season_air_date",
         )
         .in("id", ids),
       supabase
@@ -373,6 +373,13 @@ async function hydrateSearchMetadata(
             sources: metadata.sources ?? undefined,
             trendingAt: metadata.trending_at ?? undefined,
             theatricalAt: metadata.theatrical_at ?? undefined,
+            latestSeason:
+              metadata.latest_season_number && metadata.latest_season_air_date
+                ? {
+                    number: metadata.latest_season_number,
+                    airDate: metadata.latest_season_air_date,
+                  }
+                : undefined,
             lastSyncedAt: metadata.last_synced_at ?? undefined,
             emotionScores:
               (metadata.emotional_scores as Record<string, number> | null) ??

@@ -182,6 +182,12 @@ export function MovieDetails({
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [feedback, setFeedback] = useState<boolean | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  // Callers often pass an inline handler; reading it through a ref keeps a
+  // parent re-render from refetching details and re-logging the view.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -235,7 +241,7 @@ export function MovieDetails({
       });
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", onKeyDown);
     closeButtonRef.current?.focus();
@@ -246,7 +252,7 @@ export function MovieDetails({
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [movie.id, movie.video, onClose]);
+  }, [movie.id, movie.video]);
 
   const save = async (payload: {
     status?: "WATCHED" | "WATCHLIST" | "NONE";

@@ -1,15 +1,14 @@
 "use client";
 
 import { Bookmark, Check, Heart, Star } from "lucide-react";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import {
+  LazyMovieDetails as MovieDetails,
+  usePreloadMovieDetails,
+} from "@/features/feed/lazy-movie-details";
 import { ResilientImage as Image } from "@/components/resilient-image";
 import type { Movie } from "@/types/movie";
-
-const MovieDetails = dynamic(() =>
-  import("@/features/feed/movie-feed").then((module) => module.MovieDetails),
-);
 
 export type ShelfItem = {
   key: string;
@@ -56,6 +55,7 @@ export function MyShelf({
   recommendations: Movie[];
   loggedIn: boolean;
 }) {
+  usePreloadMovieDetails();
   const router = useRouter();
   const [tab, setTab] = useState<TabId>(
     () => TABS.find((entry) => items.some(entry.match))?.id ?? "WATCHLIST",
