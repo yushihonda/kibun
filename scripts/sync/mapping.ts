@@ -90,6 +90,8 @@ export function mapTmdbMovie(
     tmdb_collection_id: details.belongs_to_collection?.id ?? null,
     number_of_seasons: details.number_of_seasons,
     number_of_episodes: details.number_of_episodes,
+    latest_season_number: details.latest_season?.number ?? null,
+    latest_season_air_date: details.latest_season?.air_date ?? null,
     sources: [...new Set(sources)].sort() as TmdbSource[],
     trending_at: sources.includes("trending") ? syncedAt : null,
     theatrical_at:

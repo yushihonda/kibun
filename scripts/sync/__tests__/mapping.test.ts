@@ -11,7 +11,7 @@ import {
   isMissingHttpResource,
   isRetryableHttpError,
 } from "../retry.js";
-import { pageEnd, pageLimit, TmdbClient } from "../tmdb.js";
+import { latestSeason, pageEnd, pageLimit, TmdbClient } from "../tmdb.js";
 import type { TmdbDetails, TmdbVideo } from "../types.js";
 import { selectYouTubeVideo } from "../youtube.js";
 
@@ -68,26 +68,42 @@ describe("TMDB mapping", () => {
   });
 
   it("applies curated Japanese titles to TV entries without touching movies", () => {
-    const season2 = mapTmdbMovie(
+    const show = mapTmdbMovie(
       movie({
-        id: 326788,
+        id: 105248,
         media_type: "tv",
-        title: "Cyberpunk: Edgerunners 2",
-        original_title: "Cyberpunk: Edgerunners 2",
+        title: "Cyberpunk: Edgerunners",
+        original_title: "Cyberpunk: Edgerunners",
+        latest_season: { number: 2, air_date: "2026-10-20" },
       }),
-      ["discover"],
+      ["trending"],
       ["高揚感"],
       "2026-10-26T00:00:00Z",
     );
-    expect(season2.title).toBe("サイバーパンク エッジランナーズ2");
-    expect(season2.aliases).toContain("エッジランナーズ2");
-    expect(season2.aliases).not.toContain("サイバーパンク エッジランナーズ2");
+    expect(show.title).toBe("サイバーパンク エッジランナーズ");
+    // Season 2 lives inside the same TMDB show, so its names are aliases.
+    expect(show.aliases).toContain("エッジランナーズ2");
+    expect(show.aliases).not.toContain("サイバーパンク エッジランナーズ");
+    expect(show.latest_season_number).toBe(2);
+    expect(show.latest_season_air_date).toBe("2026-10-20");
 
     // TMDB movie IDs overlap with TV IDs, so a movie with the same number
     // must keep its own title.
     expect(
-      mapTmdbMovie(movie({ id: 326788 }), [], [], "2026-10-26T00:00:00Z").title,
+      mapTmdbMovie(movie({ id: 105248 }), [], [], "2026-10-26T00:00:00Z").title,
     ).toBe("作品");
+  });
+
+  it("picks the newest numbered season that has an air date", () => {
+    expect(
+      latestSeason([
+        { season_number: 0, air_date: "2027-01-01" },
+        { season_number: 1, air_date: "2022-09-13" },
+        { season_number: 2, air_date: "2026-10-20" },
+        { season_number: 3, air_date: null },
+      ]),
+    ).toEqual({ number: 2, air_date: "2026-10-20" });
+    expect(latestSeason(undefined)).toBeNull();
   });
 
   it("marks weekly trends without putting the timestamp in the hash", () => {

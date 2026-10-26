@@ -29,7 +29,11 @@ import { Brand } from "@/components/brand";
 import { ProviderBadge } from "@/components/provider-badge";
 import type { Movie, MovieRail } from "@/types/movie";
 import { formatRuntime } from "@/lib/utils";
-import { isFreshSocialTrend, isNowPlayingTitle } from "@/lib/discovery/ranking";
+import {
+  isFreshSocialTrend,
+  isNowPlayingTitle,
+  newSeasonLabel,
+} from "@/lib/discovery/ranking";
 import { groupProviderServices } from "@/lib/providers/catalog";
 import {
   getAnalyticsSessionId,
@@ -422,6 +426,7 @@ export function MovieDetails({
             <p className="text-xs font-bold tracking-widest text-lime-300">
               {movie.mediaType === "tv" ? "ドラマ" : "映画"} ・ KIBUN PICK
               {isNowPlayingTitle(movie) ? " ・ 上映中" : ""}
+              {newSeasonLabel(movie) ? ` ・ ${newSeasonLabel(movie)}` : ""}
             </p>
             <h2 className="mt-1 text-2xl font-black">{movie.title}</h2>
             <p className="mt-2 text-sm text-white/75">
@@ -1104,6 +1109,11 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                     {isNowPlayingTitle(movie) && (
                       <span className="ml-2 rounded-full bg-rose-600 px-2 py-0.5 font-black text-white">
                         上映中
+                      </span>
+                    )}
+                    {newSeasonLabel(movie) && (
+                      <span className="ml-2 rounded-full bg-sky-600 px-2 py-0.5 font-black text-white">
+                        {newSeasonLabel(movie)}
                       </span>
                     )}{" "}
                     ・ {movie.releaseDate.slice(0, 4)} ・{" "}

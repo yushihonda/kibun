@@ -10,6 +10,7 @@ import {
   isRecentTitle,
   isRecommendationEligible,
   isUpcomingTitle,
+  newSeasonLabel,
   socialTrendBoost,
   weightedRating,
 } from "./ranking";
@@ -175,5 +176,37 @@ describe("discovery ranking", () => {
     expect(isFreshSocialTrend(recalculated, now)).toBe(false);
     expect(socialTrendBoost(recalculated, now)).toBe(0);
     expect(isFreshSocialTrend(unknownPostDate, now)).toBe(false);
+  });
+});
+
+describe("newSeasonLabel", () => {
+  const show = (season?: Movie["latestSeason"]) =>
+    title({ mediaType: "tv", latestSeason: season });
+
+  it("flags a later season that just started or starts soon", () => {
+    expect(
+      newSeasonLabel(show({ number: 2, airDate: "2026-07-20" }), now),
+    ).toBe("シーズン2 配信中");
+    expect(
+      newSeasonLabel(show({ number: 3, airDate: "2026-08-15" }), now),
+    ).toBe("シーズン3 8/15配信");
+  });
+
+  it("ignores first seasons, old seasons, and movies", () => {
+    expect(
+      newSeasonLabel(show({ number: 1, airDate: "2026-08-01" }), now),
+    ).toBeNull();
+    expect(
+      newSeasonLabel(show({ number: 2, airDate: "2026-01-01" }), now),
+    ).toBeNull();
+    expect(
+      newSeasonLabel(show({ number: 2, airDate: "2026-12-01" }), now),
+    ).toBeNull();
+    expect(
+      newSeasonLabel(
+        title({ latestSeason: { number: 2, airDate: "2026-08-01" } }),
+        now,
+      ),
+    ).toBeNull();
   });
 });

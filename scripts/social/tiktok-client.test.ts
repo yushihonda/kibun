@@ -7,6 +7,7 @@ import {
   matchesTikTokTargetRegion,
   scoreTikTokTitleRelevance,
 } from "./tiktok-relevance";
+import { MANUAL_TV_METADATA } from "../sync/manual-metadata";
 
 describe("TikTok RapidAPI adapter", () => {
   it("normalizes flat sample fields from the requested API", () => {
@@ -137,7 +138,25 @@ describe("TikTok RapidAPI adapter", () => {
     });
   });
 
-  it("leaves later-season posts to the sequel entry", () => {
+  it("counts new-season posts for a show that lists its seasons together", () => {
+    const show = MANUAL_TV_METADATA[105248];
+    for (const caption of [
+      "エッジランナーズ2 やばすぎる",
+      "サイバーパンク エッジランナーズ S2 観た",
+      "#エッジランナーズ2 #anime",
+      "エッジランナーズ 一気見した",
+    ]) {
+      expect(
+        scoreTikTokTitleRelevance(
+          { caption, hashtags: [] },
+          show.title!,
+          show.aliases,
+        ),
+      ).toBeGreaterThanOrEqual(0.7);
+    }
+  });
+
+  it("leaves later-season posts to a separate sequel entry", () => {
     const season1 = [
       "サイバーパンク エッジランナーズ",
       ["エッジランナーズ"],

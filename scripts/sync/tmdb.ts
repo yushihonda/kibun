@@ -31,6 +31,22 @@ type RawTmdbListItem = Partial<TmdbListMovie> & {
   first_air_date?: string;
 };
 
+// Season 0 holds specials; the newest numbered season with an air date is
+// what viewers mean by "the new season".
+export function latestSeason(
+  seasons: { season_number: number; air_date?: string | null }[] | undefined,
+): { number: number; air_date: string } | null {
+  const dated = (seasons ?? []).filter(
+    (season): season is { season_number: number; air_date: string } =>
+      season.season_number > 0 && Boolean(season.air_date),
+  );
+  if (!dated.length) return null;
+  const latest = dated.reduce((a, b) =>
+    b.season_number > a.season_number ? b : a,
+  );
+  return { number: latest.season_number, air_date: latest.air_date };
+}
+
 type RawTmdbDetails = RawTmdbListItem & {
   genres?: TmdbGenre[];
   runtime?: number | null;
@@ -52,6 +68,7 @@ type RawTmdbDetails = RawTmdbListItem & {
   belongs_to_collection?: { id: number; name: string } | null;
   number_of_seasons?: number;
   number_of_episodes?: number;
+  seasons?: { season_number: number; air_date?: string | null }[];
   "watch/providers"?: {
     results?: Record<
       string,
@@ -219,6 +236,7 @@ function normalizedDetails(
       mediaType === "tv" ? (item.number_of_seasons ?? null) : null,
     number_of_episodes:
       mediaType === "tv" ? (item.number_of_episodes ?? null) : null,
+    latest_season: mediaType === "tv" ? latestSeason(item.seasons) : null,
     "watch/providers": {
       results: item["watch/providers"]?.results ?? {},
     },

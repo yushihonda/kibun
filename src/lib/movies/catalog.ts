@@ -41,6 +41,8 @@ type CatalogRow = {
   trending_at: string | null;
   theatrical_at: string | null;
   providers_checked_at: string | null;
+  latest_season_number: number | null;
+  latest_season_air_date: string | null;
   created_at: string;
   last_synced_at: string | null;
   movie_videos?: VideoRow[] | null;
@@ -155,7 +157,7 @@ export async function loadCatalogMovies(
   let query = supabase
     .from("movies")
     .select(
-      `id,tmdb_id,media_type,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,vote_count,popularity,genres,emotional_tags,sources,trending_at,theatrical_at,providers_checked_at,created_at,last_synced_at${recommendationFields}${relatedFields}`,
+      `id,tmdb_id,media_type,title,original_title,overview,poster_path,backdrop_path,release_date,runtime,vote_average,vote_count,popularity,genres,emotional_tags,sources,trending_at,theatrical_at,providers_checked_at,latest_season_number,latest_season_air_date,created_at,last_synced_at${recommendationFields}${relatedFields}`,
     )
     .eq("adult", false)
     .eq("movie_videos.status", "approved")
@@ -221,6 +223,13 @@ export async function loadCatalogMovies(
       trendingAt: row.trending_at ?? undefined,
       theatricalAt: row.theatrical_at ?? undefined,
       providersCheckedAt: row.providers_checked_at ?? undefined,
+      latestSeason:
+        row.latest_season_number && row.latest_season_air_date
+          ? {
+              number: row.latest_season_number,
+              airDate: row.latest_season_air_date,
+            }
+          : undefined,
       providers: mapProviders(
         (row.movie_providers ?? []).filter(
           (provider) => provider.country === "JP",

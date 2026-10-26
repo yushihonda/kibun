@@ -82,6 +82,22 @@ export function isNowPlayingTitle(movie: Movie, now = new Date()): boolean {
   return age >= -DAY_MS && age <= 4 * DAY_MS;
 }
 
+// A second or later season that started recently, or starts within two
+// weeks, is news worth flagging on its own.
+export function newSeasonLabel(movie: Movie, now = new Date()): string | null {
+  const season = movie.latestSeason;
+  if (movie.mediaType !== "tv" || !season || season.number < 2) return null;
+  const airDate = dateValue(season.airDate);
+  if (airDate === null) return null;
+  const age = now.getTime() - airDate;
+  if (age >= 0 && age <= 60 * DAY_MS) return `シーズン${season.number} 配信中`;
+  if (age < 0 && age >= -14 * DAY_MS) {
+    const [, month, day] = season.airDate.split("-").map(Number);
+    return `シーズン${season.number} ${month}/${day}配信`;
+  }
+  return null;
+}
+
 export function isHighConfidenceRating(movie: Movie): boolean {
   return (
     movie.voteAverage >= 7.5 && voteCount(movie) >= voteFloor(movie, 500, 250)

@@ -3,7 +3,11 @@
 import { ResilientImage as Image } from "@/components/resilient-image";
 import { ProviderBadge } from "@/components/provider-badge";
 import { groupProviderServices } from "@/lib/providers/catalog";
-import { isFreshSocialTrend, isNowPlayingTitle } from "@/lib/discovery/ranking";
+import {
+  isFreshSocialTrend,
+  isNowPlayingTitle,
+  newSeasonLabel,
+} from "@/lib/discovery/ranking";
 import type { Movie, MovieRail } from "@/types/movie";
 import { useEffect, useRef, useState } from "react";
 
@@ -64,6 +68,11 @@ function CategoryRail({
                 <span className="absolute top-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-zinc-950 shadow-sm backdrop-blur">
                   {movie.mediaType === "tv" ? "ドラマ" : "映画"}
                 </span>
+                {newSeasonLabel(movie) && (
+                  <span className="absolute top-8 left-2 rounded-full bg-sky-600 px-2 py-0.5 text-[10px] font-black text-white shadow-sm">
+                    {newSeasonLabel(movie)}
+                  </span>
+                )}
                 <span className="absolute top-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur">
                   ★ {movie.voteAverage.toFixed(1)}
                 </span>

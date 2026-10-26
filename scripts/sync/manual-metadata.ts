@@ -53,8 +53,8 @@ export const MANUAL_MOVIE_METADATA: Record<number, ManualMovieMetadata> = {
 };
 
 // TMDB uses separate ID spaces for movies and TV, so TV entries live apart.
-// Later seasons that TMDB lists as their own show are named here so that
-// search and TikTok matching keep them distinct from the first season.
+// Aliases for later seasons keep posts about a new season attached to the
+// show, since TMDB lists seasons inside one entry.
 export const MANUAL_TV_METADATA: Record<number, ManualMovieMetadata> = {
   105248: {
     title: "サイバーパンク エッジランナーズ",
@@ -62,16 +62,10 @@ export const MANUAL_TV_METADATA: Record<number, ManualMovieMetadata> = {
       "エッジランナーズ",
       "サイバーパンクエッジランナーズ",
       "Cyberpunk Edgerunners",
-    ],
-  },
-  326788: {
-    title: "サイバーパンク エッジランナーズ2",
-    aliases: [
       "エッジランナーズ2",
       "エッジランナーズ シーズン2",
-      "サイバーパンク エッジランナーズ シーズン2",
+      "サイバーパンク エッジランナーズ2",
       "Cyberpunk Edgerunners 2",
-      "Cyberpunk Edgerunners Season 2",
     ],
   },
 };

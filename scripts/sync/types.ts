@@ -115,6 +115,7 @@ export interface TmdbDetails extends Omit<TmdbListMovie, "genre_ids"> {
   belongs_to_collection?: { id: number; name: string } | null;
   number_of_seasons: number | null;
   number_of_episodes: number | null;
+  latest_season?: { number: number; air_date: string } | null;
   "watch/providers"?: {
     results: Record<
       string,
@@ -161,6 +162,8 @@ export interface MovieRecord {
   tmdb_collection_id: number | null;
   number_of_seasons: number | null;
   number_of_episodes: number | null;
+  latest_season_number: number | null;
+  latest_season_air_date: string | null;
   sources: TmdbSource[];
   trending_at: string | null;
   theatrical_at: string | null;
