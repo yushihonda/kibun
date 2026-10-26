@@ -144,8 +144,8 @@ test("preferences, recommendations and cross-device shelf sync", async ({
   await waitForInteraction(page, movies![3].id);
   await page.reload({ waitUntil: "domcontentloaded" });
 
-  await expect(page.getByRole("button", { name: /見たい/ })).toContainText("1");
-  await expect(page.getByRole("button", { name: /お気に入り/ })).toContainText(
+  await expect(page.getByRole("tab", { name: /見たい/ })).toContainText("1");
+  await expect(page.getByRole("tab", { name: /お気に入り/ })).toContainText(
     "4",
   );
 
@@ -157,7 +157,7 @@ test("preferences, recommendations and cross-device shelf sync", async ({
   const secondPage = await secondDevice.newPage();
   await secondPage.goto("/me", { waitUntil: "domcontentloaded" });
   await expect(
-    secondPage.getByRole("button", { name: /お気に入り/ }),
+    secondPage.getByRole("tab", { name: /お気に入り/ }),
   ).toContainText("4");
   await secondDevice.close();
 });

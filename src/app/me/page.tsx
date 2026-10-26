@@ -1,17 +1,9 @@
-import {
-  Bookmark,
-  Check,
-  Heart,
-  LogIn,
-  LogOut,
-  Share2,
-  Star,
-} from "lucide-react";
-import { ResilientImage as Image } from "@/components/resilient-image";
+import { LogIn, LogOut, Share2 } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
+import { MyShelf, type ShelfItem } from "@/features/me/my-shelf";
 import { PersonalizationSettings } from "@/features/me/personalization-settings";
 import { loadCatalogMovies } from "@/lib/movies/catalog";
 import { loadRecommendations } from "@/lib/recommendations/server";
@@ -68,20 +60,28 @@ export default async function MyPage() {
       ])
     : [{ data: null }, { data: null }, [], { movies: [], personalized: false }];
   const shelf = (shelfData ?? []) as unknown as ShelfRow[];
-  const watched = shelf.filter((item) => item.status === "WATCHED");
-  const tabs = [
-    {
-      label: "見たい",
-      count: shelf.filter((item) => item.status === "WATCHLIST").length,
-      icon: Bookmark,
-    },
-    { label: "見た", count: watched.length, icon: Check },
-    {
-      label: "お気に入り",
-      count: shelf.filter((item) => item.is_favorite).length,
-      icon: Heart,
-    },
-  ];
+  const shelfMovieIds = shelf.flatMap((item) =>
+    item.movie ? [item.movie.id] : [],
+  );
+  const shelfMovies = shelfMovieIds.length
+    ? await loadCatalogMovies(supabase!, {
+        movieIds: shelfMovieIds,
+        limit: 500,
+      }).catch(() => [])
+    : [];
+  const moviesById = new Map(shelfMovies.map((movie) => [movie.id, movie]));
+  const shelfItems: ShelfItem[] = shelf.map((item) => ({
+    key: item.movie?.id ?? item.updated_at,
+    title: item.movie?.title ?? "削除された作品",
+    posterUrl: item.movie?.poster_path
+      ? `https://image.tmdb.org/t/p/w780${item.movie.poster_path}`
+      : null,
+    status: item.status,
+    isFavorite: item.is_favorite,
+    rating: item.rating,
+    movie: (item.movie && moviesById.get(item.movie.id)) ?? null,
+  }));
+  const favoriteCount = shelf.filter((item) => item.is_favorite).length;
 
   return (
     <main className="min-h-dvh bg-zinc-950 pb-28 text-white">
@@ -140,7 +140,7 @@ export default async function MyPage() {
               </p>
             </div>
             <a
-              href={`/api/share?title=わたしのお気に入り${tabs[2].count}選&movies=${shelf
+              href={`/api/share?title=わたしのお気に入り${favoriteCount}選&movies=${shelf
                 .filter((item) => item.is_favorite && item.movie)
                 .map((item) => item.movie!.id)
                 .slice(0, 9)
@@ -149,109 +149,16 @@ export default async function MyPage() {
               className="flex items-center gap-2 rounded-full border border-white/15 px-4 py-2.5 text-xs font-bold hover:bg-white/5"
             >
               <Share2 size={15} />
-              {tabs[2].count}選を画像にする
+              {favoriteCount}選を画像にする
             </a>
           </div>
-          <div className="mt-8 grid grid-cols-3 gap-3">
-            {tabs.map(({ label, count, icon: Icon }) => (
-              <button
-                key={label}
-                type="button"
-                className="rounded-2xl bg-black/25 p-4 text-left transition hover:bg-black/40"
-              >
-                <Icon className="text-lime-300" size={19} />
-                <p className="mt-4 text-2xl font-black">{count}</p>
-                <p className="text-xs text-white/75">{label}</p>
-              </button>
-            ))}
-          </div>
         </section>
 
-        <section className="mt-10">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-xs font-bold tracking-widest text-white/70">
-                RECENTLY WATCHED
-              </p>
-              <h2 className="mt-1 text-xl font-black">最近観た作品</h2>
-            </div>
-            <button className="text-xs font-bold text-lime-300" type="button">
-              すべて見る
-            </button>
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {watched.slice(0, 4).map((item) => (
-              <article key={item.movie?.id ?? item.updated_at}>
-                <div className="relative aspect-[2/3] overflow-hidden rounded-2xl">
-                  {item.movie?.poster_path ? (
-                    <Image
-                      src={`https://image.tmdb.org/t/p/w780${item.movie.poster_path}`}
-                      alt={`${item.movie.title} ポスター`}
-                      fill
-                      sizes="(max-width: 640px) 50vw, 25vw"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-full place-items-center bg-white/5 text-xs text-white/70">
-                      NO IMAGE
-                    </div>
-                  )}
-                </div>
-                <h3 className="mt-2 truncate text-sm font-bold">
-                  {item.movie?.title ?? "削除された映画"}
-                </h3>
-                <div className="mt-1 flex text-amber-300">
-                  {Array.from({ length: 5 }, (_, star) => (
-                    <Star
-                      key={star}
-                      size={12}
-                      className={
-                        star < (item.rating ?? 0) ? "fill-current" : ""
-                      }
-                    />
-                  ))}
-                </div>
-              </article>
-            ))}
-            {!watched.length && (
-              <p className="col-span-full rounded-2xl border border-dashed border-white/25 bg-white/[0.03] p-8 text-center text-sm text-white/75">
-                {user
-                  ? "「見た」にした作品がここに並びます。"
-                  : "ログインして作品棚を作りましょう。"}
-              </p>
-            )}
-          </div>
-        </section>
-
-        {user && recommendationResult.movies.length > 0 && (
-          <section className="mt-10">
-            <p className="text-xs font-bold tracking-widest text-lime-300">
-              FOR YOU
-            </p>
-            <h2 className="mt-1 text-xl font-black">あなたへのおすすめ</h2>
-            <div className="mt-5 flex gap-3 overflow-x-auto pb-2">
-              {recommendationResult.movies.map((movie) => (
-                <article key={movie.id} className="w-32 shrink-0">
-                  <div className="relative aspect-[2/3] overflow-hidden rounded-2xl">
-                    <Image
-                      src={movie.posterUrl}
-                      alt={`${movie.title} ポスター`}
-                      fill
-                      sizes="128px"
-                      className="object-cover"
-                    />
-                  </div>
-                  <h3 className="mt-2 line-clamp-2 text-xs font-bold">
-                    {movie.title}
-                  </h3>
-                  <p className="mt-1 line-clamp-2 text-[10px] text-lime-200">
-                    {movie.recommendationReason}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
+        <MyShelf
+          items={shelfItems}
+          recommendations={user ? recommendationResult.movies : []}
+          loggedIn={Boolean(user)}
+        />
 
         {user && (
           <PersonalizationSettings

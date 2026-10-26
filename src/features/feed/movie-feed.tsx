@@ -341,7 +341,7 @@ export function MovieDetails({
       onClick={onClose}
     >
       <section
-        className="mx-auto max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] border border-white/10 bg-zinc-950 px-5 pb-10 pt-3 shadow-2xl"
+        className="mx-auto max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] border border-white/10 bg-zinc-950 px-5 pb-10 pt-3 text-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <button
