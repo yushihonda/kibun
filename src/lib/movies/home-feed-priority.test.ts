@@ -73,4 +73,29 @@ describe("prioritizeHomeFeedSections", () => {
     expect(ids).toEqual(["shared-video", "video-2", "image-1"]);
     expect(new Set(ids).size).toBe(ids.length);
   });
+  it("lets a ranker reorder every playable title before the video cut", () => {
+    const sections: MovieRail[] = [
+      {
+        id: "a",
+        title: "A",
+        description: "",
+        movies: [movie("a1", true), movie("a2", true)],
+      },
+      {
+        id: "b",
+        title: "B",
+        description: "",
+        movies: [movie("b1", true), movie("b2")],
+      },
+    ];
+    const result = prioritizeHomeFeedSections(sections, {
+      limit: 10,
+      videoLimit: 2,
+      rankVideos: (movies) => [...movies].reverse(),
+    });
+    expect(result[0].movies.map((entry) => entry.id)).toEqual(["b1", "a2"]);
+    expect(
+      result.flatMap((rail) => rail.movies).map((entry) => entry.id),
+    ).toEqual(["b1", "a2", "a1", "b2"]);
+  });
 });

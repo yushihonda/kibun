@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Movie } from "@/types/movie";
 import {
+  blendWithInterest,
   buildPreferenceProfile,
+  interestAffinity,
+  interleaveForDiscovery,
   recommendMovies,
   type RecommendationInteraction,
 } from "./engine";
@@ -133,5 +136,63 @@ describe("recommendMovies", () => {
     expect(
       recommendMovies([ordinary, social], profile, { limit: 2 })[0].id,
     ).toBe("social");
+  });
+});
+
+describe("home feed personalization helpers", () => {
+  const profile = buildPreferenceProfile(
+    [
+      {
+        movie: movie("fav", "アニメーション", "高揚感"),
+        status: "WATCHED",
+        isFavorite: true,
+        rating: 5,
+      },
+    ],
+    { enabled: true, genres: [], emotions: [] },
+  );
+
+  it("scores taste separately from popularity", () => {
+    expect(
+      interestAffinity(movie("a", "アニメーション", "高揚感"), profile).score,
+    ).toBeGreaterThan(
+      interestAffinity(movie("b", "ホラー", "不穏"), profile).score,
+    );
+  });
+
+  it("lifts titles that match taste without discarding the section order", () => {
+    const titles = [
+      movie("trend-1", "ホラー", "不穏"),
+      movie("trend-2", "アニメーション", "高揚感"),
+      movie("trend-3", "ホラー", "不穏"),
+      movie("trend-4", "ホラー", "不穏"),
+    ];
+    const order = new Map(titles.map((entry, index) => [entry.id, 10 - index]));
+    const affinity = new Map(
+      titles.map((entry) => [entry.id, interestAffinity(entry, profile).score]),
+    );
+    const ranked = blendWithInterest(
+      titles,
+      (entry) => order.get(entry.id)!,
+      affinity,
+    ).map((entry) => entry.id);
+    expect(ranked[0]).toBe("trend-2");
+    expect(ranked.slice(1)).toEqual(["trend-1", "trend-3", "trend-4"]);
+    // Without taste signals the section keeps its own order.
+    expect(
+      blendWithInterest(titles, (entry) => order.get(entry.id)!, new Map()).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(["trend-1", "trend-2", "trend-3", "trend-4"]);
+  });
+
+  it("mixes taste picks with trending titles and never repeats one", () => {
+    const ids = (values: string[]) => values.map((id) => ({ id }));
+    expect(
+      interleaveForDiscovery(
+        ids(["p1", "p2", "t2", "p3", "p4"]),
+        ids(["t1", "t2", "p1", "t3"]),
+      ).map((entry) => entry.id),
+    ).toEqual(["p1", "p2", "t1", "t2", "p3", "t3", "p4"]);
   });
 });

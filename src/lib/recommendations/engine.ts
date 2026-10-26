@@ -109,12 +109,13 @@ export function buildPreferenceProfile(
   return profile;
 }
 
-function recommendationScore(
+// How strongly a title matches the viewer's taste, independent of how
+// popular or trending it is.
+export function interestAffinity(
   movie: Movie,
   profile: PreferenceProfile,
-  now: Date,
-) {
-  let score = discoveryScore(movie, now);
+): { score: number; reason?: string } {
+  let score = 0;
   const reasons: Array<{ label: string; weight: number }> = [];
 
   for (const genre of movie.genres) {
@@ -149,8 +150,84 @@ function recommendationScore(
     reasons.push({ label: `${actor.name}出演`, weight: signal.weight });
   }
 
-  const reason = reasons.sort((a, b) => b.weight - a.weight)[0]?.label;
-  return { movie, score, reason: reason ?? "人気と評価からおすすめ" };
+  return {
+    score,
+    reason: reasons.sort((a, b) => b.weight - a.weight)[0]?.label,
+  };
+}
+
+function recommendationScore(
+  movie: Movie,
+  profile: PreferenceProfile,
+  now: Date,
+) {
+  const affinity = interestAffinity(movie, profile);
+  return {
+    movie,
+    score: discoveryScore(movie, now) + affinity.score,
+    reason: affinity.reason ?? "人気と評価からおすすめ",
+  };
+}
+
+// Ranks titles by blending their position in a section's own ordering
+// (trend, freshness, rating...) with the viewer's interest. Percentile ranks
+// keep the two scales comparable whatever each section scores with.
+export function blendWithInterest<T extends Movie>(
+  movies: T[],
+  baseScore: (movie: T) => number,
+  affinity: ReadonlyMap<string, number>,
+  interestWeight = 0.4,
+): T[] {
+  if (movies.length < 2) return [...movies];
+  const byBase = [...movies].sort(
+    (a, b) => baseScore(b) - baseScore(a) || a.id.localeCompare(b.id),
+  );
+  const basePercentile = new Map(
+    byBase.map((movie, index) => [movie.id, 1 - index / (byBase.length - 1)]),
+  );
+  const maxAffinity = Math.max(
+    0,
+    ...movies.map((movie) => affinity.get(movie.id) ?? 0),
+  );
+  const blended = (movie: T) =>
+    (1 - interestWeight) * (basePercentile.get(movie.id) ?? 0) +
+    interestWeight *
+      (maxAffinity > 0 ? (affinity.get(movie.id) ?? 0) / maxAffinity : 0);
+  return byBase.sort(
+    (a, b) => blended(b) - blended(a) || a.id.localeCompare(b.id),
+  );
+}
+
+// Alternates titles picked for the viewer with what is trending for
+// everyone, so the feed follows taste without closing off discovery.
+export function interleaveForDiscovery<T extends { id: string }>(
+  personal: T[],
+  trending: T[],
+  pattern: Array<"personal" | "trending"> = [
+    "personal",
+    "personal",
+    "trending",
+  ],
+): T[] {
+  const queues = { personal: [...personal], trending: [...trending] };
+  const seen = new Set<string>();
+  const result: T[] = [];
+  const take = (kind: "personal" | "trending") => {
+    const queue = queues[kind];
+    while (queue.length) {
+      const movie = queue.shift()!;
+      if (seen.has(movie.id)) continue;
+      seen.add(movie.id);
+      result.push(movie);
+      return true;
+    }
+    return false;
+  };
+  for (let step = 0; queues.personal.length || queues.trending.length; step++) {
+    const kind = pattern[step % pattern.length];
+    if (!take(kind)) take(kind === "personal" ? "trending" : "personal");
+  }
+  return result;
 }
 
 export function recommendMovies(

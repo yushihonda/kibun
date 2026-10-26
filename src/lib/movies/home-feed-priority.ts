@@ -5,6 +5,9 @@ const DEFAULT_VIDEO_LIMIT = 32;
 type HomeFeedPriorityOptions = {
   limit: number;
   videoLimit?: number;
+  // Reorders every playable title before the top video rail is cut, so a
+  // personalized order can reach past the first sections.
+  rankVideos?: (movies: Movie[]) => Movie[];
 };
 
 export function prioritizeHomeFeedSections(
@@ -19,15 +22,19 @@ export function prioritizeHomeFeedSections(
   if (!limit) return [];
 
   const seenVideos = new Set<string>();
-  const videoMovies: Movie[] = [];
+  let videoMovies: Movie[] = [];
+  const collectAll = Boolean(options.rankVideos);
   for (const section of sections) {
     for (const movie of section.movies) {
       if (!movie.video || seenVideos.has(movie.id)) continue;
       seenVideos.add(movie.id);
       videoMovies.push(movie);
-      if (videoMovies.length >= videoLimit) break;
+      if (!collectAll && videoMovies.length >= videoLimit) break;
     }
-    if (videoMovies.length >= videoLimit) break;
+    if (!collectAll && videoMovies.length >= videoLimit) break;
+  }
+  if (options.rankVideos) {
+    videoMovies = options.rankVideos(videoMovies).slice(0, videoLimit);
   }
 
   const prioritized: MovieRail[] = [];

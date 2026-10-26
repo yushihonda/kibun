@@ -92,7 +92,7 @@ const PARTIAL_POOL_TTL_SECONDS = 60;
 let cachedPool: { value: CatalogMovie[]; expiresAt: number } | null = null;
 let pendingPool: Promise<CatalogMovie[]> | null = null;
 
-function loadSharedCandidatePool(supabase: SupabaseClient, now: Date) {
+export function loadSharedCandidatePool(supabase: SupabaseClient, now: Date) {
   if (cachedPool && cachedPool.expiresAt > Date.now()) {
     return Promise.resolve(cachedPool.value);
   }
@@ -278,5 +278,17 @@ export async function loadRecommendations(
     personalizationEnabled,
     onboardingCompleted: preferenceRow?.onboarding_completed ?? false,
     signalCount: interactions.length + eventRows.length,
+    // Taste profile for ranking other surfaces; absent when the viewer has
+    // no signals yet or turned personalization off.
+    profile:
+      meaningfulSignals && personalizationEnabled && !seedMovie
+        ? profile
+        : null,
+    watchedIds: rows
+      .filter((row) => row.status === "WATCHED")
+      .map((row) => row.movie_id),
+    favoriteIds: rows
+      .filter((row) => row.is_favorite)
+      .map((row) => row.movie_id),
   };
 }

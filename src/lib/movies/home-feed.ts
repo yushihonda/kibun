@@ -17,15 +17,23 @@ import {
 import { loadCatalogMovies, type CatalogMovie } from "@/lib/movies/catalog";
 import { loadEditorialMovies } from "@/lib/movies/editorial";
 import { prioritizeHomeFeedSections } from "@/lib/movies/home-feed-priority";
-import { loadRecommendations } from "@/lib/recommendations/server";
+import {
+  blendWithInterest,
+  interestAffinity,
+  interleaveForDiscovery,
+} from "@/lib/recommendations/engine";
+import {
+  loadRecommendations,
+  loadSharedCandidatePool,
+} from "@/lib/recommendations/server";
 import type { Movie, MovieRail } from "@/types/movie";
 
 type SavedRow = { movie_id: string; save_count: number | string };
 
-function stableSort(
-  movies: CatalogMovie[],
-  score: (movie: CatalogMovie) => number,
-) {
+function stableSort<T extends CatalogMovie>(
+  movies: T[],
+  score: (movie: T) => number,
+): T[] {
   return [...movies].sort(
     (a, b) => score(b) - score(a) || a.id.localeCompare(b.id),
   );
@@ -37,6 +45,17 @@ function uniqueMovies(groups: CatalogMovie[][]): CatalogMovie[] {
       groups.flat().map((movie) => [movie.id, movie] as const),
     ).values(),
   ];
+}
+
+// Taste matching needs cast, crew and keywords, but the feed UI does not;
+// leaving them out keeps the rendered page small.
+function toFeedMovie(movie: Movie): Movie {
+  const feedMovie = { ...movie };
+  delete feedMovie.cast;
+  delete feedMovie.directors;
+  delete feedMovie.keywords;
+  delete feedMovie.aliases;
+  return feedMovie;
 }
 
 function section(
@@ -73,84 +92,65 @@ export async function loadHomeFeed(
     options && "user" in options
       ? (options.user ?? null)
       : (await supabase.auth.getUser()).data.user;
-  const trendingSince = new Date(now.getTime() - 10 * 86_400_000).toISOString();
   const theatricalSince = new Date(
     now.getTime() - 4 * 86_400_000,
   ).toISOString();
+  const emptyRecommendations = {
+    movies: [],
+    personalized: false,
+    personalizationEnabled: true,
+    onboardingCompleted: false,
+    signalCount: 0,
+    profile: null,
+    watchedIds: [] as string[],
+    favoriteIds: [] as string[],
+  };
   const [
-    popularPool,
-    provenPool,
-    weeklyPool,
+    sharedPool,
     theatricalPool,
     editorial,
     recommendationResult,
     savedResult,
-    socialResult,
   ] = await Promise.all([
-    loadCatalogMovies(supabase, { limit: 240, orderBy: "popularity" }),
-    loadCatalogMovies(supabase, { limit: 200, orderBy: "vote_count" }),
-    loadCatalogMovies(supabase, {
-      limit: 120,
-      orderBy: "trending_at",
-      trendingSince,
-    }),
+    loadSharedCandidatePool(supabase, now),
     loadCatalogMovies(supabase, {
       limit: 80,
       orderBy: "theatrical_at",
       theatricalSince,
-    }),
+      includeRecommendationMetadata: true,
+    }).catch(() => []),
     loadEditorialMovies(supabase, { limit: 8 }).catch(() => []),
     user
-      ? loadRecommendations(supabase, { limit: 16, now, user }).catch(() => ({
-          movies: [],
-          personalized: false,
-          personalizationEnabled: true,
-          onboardingCompleted: false,
-          signalCount: 0,
-        }))
-      : Promise.resolve({
-          movies: [],
-          personalized: false,
-          personalizationEnabled: true,
-          onboardingCompleted: false,
-          signalCount: 0,
-        }),
+      ? loadRecommendations(supabase, { limit: 32, now, user }).catch(
+          () => emptyRecommendations,
+        )
+      : Promise.resolve(emptyRecommendations),
     supabase.rpc("most_saved_movies", { p_limit: 60 }),
-    supabase
-      .from("movie_social_signals")
-      .select("movie_id,trend_score")
-      .gte(
-        "calculated_at",
-        new Date(now.getTime() - 30 * 86_400_000).toISOString(),
-      )
-      .order("trend_score", { ascending: false })
-      .limit(60),
   ]);
-  const socialMovieIds = (socialResult.data ?? []).map((row) =>
-    String(row.movie_id),
+  const pool = uniqueMovies([theatricalPool, sharedPool]);
+  const watchedIds = new Set(recommendationResult.watchedIds);
+  // Titles the viewer has already watched or loved are not news to them.
+  const knownIds = new Set([
+    ...recommendationResult.watchedIds,
+    ...recommendationResult.favoriteIds,
+  ]);
+  const profile = recommendationResult.profile;
+  const affinity = new Map<string, number>(
+    profile
+      ? pool.map((movie) => [movie.id, interestAffinity(movie, profile).score])
+      : [],
   );
-  const socialPool = socialMovieIds.length
-    ? await loadCatalogMovies(supabase, {
-        limit: socialMovieIds.length,
-        movieIds: socialMovieIds,
-      })
-    : [];
-  const pool = uniqueMovies([
-    socialPool,
-    theatricalPool,
-    weeklyPool,
-    popularPool,
-    provenPool,
-  ]);
-  const watchedIds = new Set<string>();
-  if (user) {
-    const { data } = await supabase
-      .from("user_movie_interactions")
-      .select("movie_id")
-      .eq("user_id", user.id)
-      .eq("status", "WATCHED");
-    for (const row of data ?? []) watchedIds.add(String(row.movie_id));
-  }
+  const rank = <T extends CatalogMovie>(
+    movies: T[],
+    score: (movie: T) => number,
+  ): T[] =>
+    profile
+      ? blendWithInterest(
+          movies.filter((movie) => !knownIds.has(movie.id)),
+          score,
+          affinity,
+        )
+      : stableSort(movies, score);
 
   const editorialById = new Map(
     editorial.map((movie) => [movie.id, movie.editorialComment]),
@@ -222,7 +222,7 @@ export async function loadHomeFeed(
     }
   }
 
-  const socialCandidates = stableSort(
+  const socialCandidates = rank(
     enrichedPool.filter((movie) => isFreshSocialTrend(movie, now)),
     (movie) => socialTrendBoost(movie, now),
   );
@@ -254,7 +254,7 @@ export async function loadHomeFeed(
       "now-playing-movies",
       "上映中の映画",
       "日本の劇場で上映中と確認できた映画",
-      stableSort(
+      rank(
         enrichedPool.filter((movie) => isNowPlayingTitle(movie, now)),
         (movie) => theatricalScore(movie, now),
       ),
@@ -268,7 +268,7 @@ export async function loadHomeFeed(
       "trending-movies",
       "今週の話題映画",
       "TMDBの週間映画トレンドから、評価の信頼度も加味して選定",
-      stableSort(
+      rank(
         enrichedPool.filter(
           (movie) => movie.mediaType === "movie" && isFreshTrend(movie, now),
         ),
@@ -284,7 +284,7 @@ export async function loadHomeFeed(
       "trending-dramas",
       "今週の話題ドラマ",
       "TMDBの週間ドラマトレンドから、評価の信頼度も加味して選定",
-      stableSort(
+      rank(
         enrichedPool.filter(
           (movie) => movie.mediaType === "tv" && isFreshTrend(movie, now),
         ),
@@ -324,7 +324,7 @@ export async function loadHomeFeed(
       "recent-movies",
       "新作映画",
       "直近公開の映画から、票数と評価を満たす作品を選定",
-      stableSort(
+      rank(
         enrichedPool.filter(
           (movie) => movie.mediaType === "movie" && isRecentTitle(movie, now),
         ),
@@ -339,7 +339,7 @@ export async function loadHomeFeed(
       "recent-dramas",
       "新作ドラマ",
       "直近配信のドラマから、票数と評価を満たす作品を選定",
-      stableSort(
+      rank(
         enrichedPool.filter(
           (movie) => movie.mediaType === "tv" && isRecentTitle(movie, now),
         ),
@@ -354,7 +354,7 @@ export async function loadHomeFeed(
       "evergreen-movies",
       "不動の人気映画",
       "長く支持されている高評価映画を、票数補正付きで選定",
-      stableSort(
+      rank(
         enrichedPool.filter(
           (movie) =>
             movie.mediaType === "movie" && isEvergreenTitle(movie, now),
@@ -370,7 +370,7 @@ export async function loadHomeFeed(
       "evergreen-dramas",
       "不動の人気ドラマ",
       "長く支持されている高評価ドラマを、票数補正付きで選定",
-      stableSort(
+      rank(
         enrichedPool.filter(
           (movie) => movie.mediaType === "tv" && isEvergreenTitle(movie, now),
         ),
@@ -385,7 +385,7 @@ export async function loadHomeFeed(
       "streaming-movies",
       "配信中の映画",
       "日本で見放題配信を確認できた映画",
-      stableSort(
+      rank(
         enrichedPool.filter(
           (movie) =>
             movie.mediaType === "movie" &&
@@ -402,7 +402,7 @@ export async function loadHomeFeed(
       "streaming-dramas",
       "配信中のドラマ",
       "日本で見放題配信を確認できたドラマ",
-      stableSort(
+      rank(
         enrichedPool.filter(
           (movie) =>
             movie.mediaType === "tv" &&
@@ -435,7 +435,7 @@ export async function loadHomeFeed(
         "unseen",
         "まだ見ていない映画・ドラマ",
         "視聴済みを除外した候補（種別を明記）",
-        stableSort(
+        rank(
           enrichedPool.filter((movie) => !watchedIds.has(movie.id)),
           (movie) => discoveryScore(movie, now),
         ),
@@ -445,8 +445,21 @@ export async function loadHomeFeed(
     );
   }
 
+  const trendRank = (movie: Movie) => discoveryScore(movie, now);
   return {
-    sections: prioritizeHomeFeedSections(sections, { limit: 64 }),
+    sections: prioritizeHomeFeedSections(sections, {
+      limit: 64,
+      rankVideos: profile
+        ? (movies) =>
+            interleaveForDiscovery(
+              blendWithInterest(movies, trendRank, affinity, 0.6),
+              [...movies].sort(
+                (a, b) =>
+                  trendRank(b) - trendRank(a) || a.id.localeCompare(b.id),
+              ),
+            )
+        : undefined,
+    }).map((rail) => ({ ...rail, movies: rail.movies.map(toFeedMovie) })),
     personalized: recommendationResult.personalized,
     generatedAt,
   };
