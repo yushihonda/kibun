@@ -23,6 +23,7 @@
     "backfill:emotions": "tsx scripts/backfill-emotions.ts",
     "backfill:videos": "tsx scripts/backfill-videos.ts",
     "backfill:missing-videos": "tsx scripts/backfill-missing-tmdb-videos.ts",
+    "backfill:season-trailers": "tsx scripts/backfill-season-trailers.ts",
     "sync:tiktok": "tsx scripts/sync-tiktok-social.ts",
     "sync:close-stale": "tsx scripts/close-stale-sync-runs.ts",
     "sync:movies": "tsx scripts/sync/index.ts",

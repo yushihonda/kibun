@@ -22,6 +22,8 @@ export type MovieVideo = {
   platform: VideoPlatform;
   videoId: string;
   url?: string;
+  // Set when the trailer belongs to one season of a show.
+  seasonNumber?: number;
 };
 
 export type SocialPostPreview = {
@@ -87,6 +89,8 @@ export type Movie = {
   providersCheckedAt?: string;
   providers: Provider[];
   video?: MovieVideo;
+  // Every selectable trailer, e.g. one per season, when there are several.
+  videos?: MovieVideo[];
   matchReasons?: string[];
   editorialComment?: string;
   recommendationReason?: string;

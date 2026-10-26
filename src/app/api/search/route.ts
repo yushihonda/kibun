@@ -29,7 +29,8 @@ import {
   mapMovieSocialSignals,
   type MovieSocialSignalRow,
 } from "@/lib/social/map-signals";
-import type { Movie, MovieVideo, OfferType, Provider } from "@/types/movie";
+import { selectMovieVideos, type MovieVideoRow } from "@/lib/movies/videos";
+import type { Movie, OfferType, Provider } from "@/types/movie";
 
 const fallbackQuery: PlannedQuery = {
   text: "",
@@ -67,12 +68,7 @@ type ProviderHydrationRow = {
     | null;
 };
 
-type VideoHydrationRow = {
-  movie_id: string;
-  platform: "youtube" | "tiktok";
-  video_id: string;
-  url: string | null;
-};
+type VideoHydrationRow = MovieVideoRow & { movie_id: string };
 
 function withReasons(movies: Movie[], planExpanded: boolean) {
   return movies.map((movie) => ({
@@ -312,7 +308,9 @@ async function hydrateSearchMetadata(
         .eq("country", "JP"),
       supabase
         .from("movie_videos")
-        .select("movie_id,platform,video_id,url")
+        .select(
+          "movie_id,platform,video_id,url,created_at,updated_at,season_number",
+        )
         .in("movie_id", ids)
         .eq("status", "approved")
         .order("created_at", { ascending: false }),
@@ -342,18 +340,18 @@ async function hydrateSearchMetadata(
     });
     providersByMovie.set(row.movie_id, providers);
   }
-  const videosByMovie = new Map<string, MovieVideo>();
+  const videoRowsByMovie = new Map<string, VideoHydrationRow[]>();
   for (const row of (videoResult.data ?? []) as VideoHydrationRow[]) {
-    const current = videosByMovie.get(row.movie_id);
-    if (current?.platform === "youtube") continue;
-    if (!current || row.platform === "youtube") {
-      videosByMovie.set(row.movie_id, {
-        platform: row.platform,
-        videoId: row.video_id,
-        url: row.url ?? undefined,
-      });
-    }
+    const list = videoRowsByMovie.get(row.movie_id) ?? [];
+    list.push(row);
+    videoRowsByMovie.set(row.movie_id, list);
   }
+  const videosByMovie = new Map(
+    [...videoRowsByMovie].map(([movieId, rows]) => [
+      movieId,
+      selectMovieVideos(rows),
+    ]),
+  );
   const metadataById = new Map(
     (data ?? []).map((row) => [row.id, row] as const),
   );
@@ -388,7 +386,8 @@ async function hydrateSearchMetadata(
             providers: normalizeProviders(
               providersByMovie.get(movie.id) ?? movie.providers,
             ),
-            video: videosByMovie.get(movie.id) ?? movie.video,
+            video: videosByMovie.get(movie.id)?.video ?? movie.video,
+            videos: videosByMovie.get(movie.id)?.videos,
             socialSignals: socialById.get(movie.id),
           }
         : { ...movie, socialSignals: socialById.get(movie.id) };

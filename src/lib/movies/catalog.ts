@@ -1,18 +1,13 @@
 import "server-only";
 
+import { selectMovieVideos, type MovieVideoRow } from "@/lib/movies/videos";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeProviders } from "@/lib/providers/catalog";
 import {
   mapMovieSocialSignals,
   type MovieSocialSignalRow,
 } from "@/lib/social/map-signals";
-import type {
-  Movie,
-  MoviePerson,
-  MovieVideo,
-  OfferType,
-  Provider,
-} from "@/types/movie";
+import type { Movie, MoviePerson, OfferType, Provider } from "@/types/movie";
 
 type CatalogRow = {
   id: string;
@@ -50,12 +45,8 @@ type CatalogRow = {
   movie_social_signals?: MovieSocialSignalRow | MovieSocialSignalRow[] | null;
 };
 
-type VideoRow = {
+type VideoRow = MovieVideoRow & {
   movie_id: string;
-  platform: "youtube" | "tiktok";
-  video_id: string;
-  url: string | null;
-  created_at: string;
   status: string;
 };
 
@@ -88,18 +79,6 @@ export type CatalogMovie = Movie & {
 
 const image = (path: string | null, size: "w780" | "w1280") =>
   path ? `https://image.tmdb.org/t/p/${size}${path}` : "/placeholder-movie.svg";
-
-function chooseVideo(videos: VideoRow[]): MovieVideo | undefined {
-  const selected =
-    videos.find((video) => video.platform === "youtube") ?? videos[0];
-  return selected
-    ? {
-        platform: selected.platform,
-        videoId: selected.video_id,
-        url: selected.url ?? undefined,
-      }
-    : undefined;
-}
 
 function mapProviders(rows: ProviderJoinRow[]): Provider[] {
   return normalizeProviders(
@@ -153,7 +132,7 @@ export async function loadCatalogMovies(
     options?.includeSocialDetails === false
       ? "movie_id,post_count,total_views,total_likes,total_comments,total_shares,average_engagement_rate,trend_score,sentiment,sentiment_score,latest_post_at,calculated_at"
       : "movie_id,post_count,total_views,total_likes,total_comments,total_shares,average_engagement_rate,trend_score,sentiment,sentiment_score,top_hashtags,topics,summary,latest_post_at,featured_posts,calculated_at";
-  const relatedFields = `,movie_videos(movie_id,platform,video_id,url,created_at,status),movie_providers(movie_id,offer_type,tmdb_link,updated_at,country,providers(tmdb_provider_id,name,slug,logo_path)),movie_social_signals(${socialFields})`;
+  const relatedFields = `,movie_videos(movie_id,platform,video_id,url,created_at,updated_at,season_number,status),movie_providers(movie_id,offer_type,tmdb_link,updated_at,country,providers(tmdb_provider_id,name,slug,logo_path)),movie_social_signals(${socialFields})`;
   let query = supabase
     .from("movies")
     .select(
@@ -235,7 +214,7 @@ export async function loadCatalogMovies(
           (provider) => provider.country === "JP",
         ),
       ),
-      video: chooseVideo(
+      ...selectMovieVideos(
         (row.movie_videos ?? []).filter((video) => video.status === "approved"),
       ),
       socialSignals: socialRow ? mapMovieSocialSignals(socialRow) : undefined,

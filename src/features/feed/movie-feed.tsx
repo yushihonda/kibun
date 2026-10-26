@@ -27,7 +27,13 @@ import {
 } from "react";
 import { Brand } from "@/components/brand";
 import { ProviderBadge } from "@/components/provider-badge";
-import type { Movie, MovieRail, SocialPostPreview } from "@/types/movie";
+import type {
+  Movie,
+  MovieRail,
+  MovieVideo,
+  SocialPostPreview,
+} from "@/types/movie";
+import { videoOptionLabel } from "@/lib/movies/videos";
 import { formatRuntime } from "@/lib/utils";
 import {
   isFreshSocialTrend,
@@ -98,6 +104,49 @@ function sentimentLabel(
   if (sentiment === "negative") return "厳しめ";
   if (sentiment === "mixed") return "賛否あり";
   return "中立";
+}
+
+function VideoChoices({
+  movie,
+  activeVideoId,
+  onSelect,
+  className = "",
+}: {
+  movie: Movie;
+  activeVideoId?: string;
+  onSelect: (video: MovieVideo) => void;
+  className?: string;
+}) {
+  if (!movie.videos || movie.videos.length < 2) return null;
+  return (
+    <div
+      className={`flex flex-wrap gap-1.5 ${className}`}
+      role="group"
+      aria-label="予告編を選ぶ"
+    >
+      {movie.videos.map((video) => {
+        const active = video.videoId === activeVideoId;
+        return (
+          <button
+            key={video.videoId}
+            type="button"
+            aria-pressed={active}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(video);
+            }}
+            className={`rounded-full px-3 py-1 text-[11px] font-black backdrop-blur ${
+              active
+                ? "bg-lime-300 text-zinc-950"
+                : "border border-white/25 bg-black/45 text-white hover:bg-black/65"
+            }`}
+          >
+            {videoOptionLabel(video)}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function YouTubePlayer({
@@ -181,6 +230,12 @@ export function MovieDetails({
   const trailerMuted = true;
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [feedback, setFeedback] = useState<boolean | null>(null);
+  const [chosenVideo, setChosenVideo] = useState<{
+    movieId: string;
+    video: MovieVideo;
+  } | null>(null);
+  const activeVideo =
+    chosenVideo?.movieId === movie.id ? chosenVideo.video : movie.video;
   const [loadedPosts, setLoadedPosts] = useState<{
     movieId: string;
     posts: SocialPostPreview[];
@@ -398,7 +453,7 @@ export function MovieDetails({
         />
 
         <div className="relative mb-5 aspect-video overflow-hidden rounded-2xl bg-zinc-900">
-          {movie.video?.platform === "youtube" ? (
+          {activeVideo?.platform === "youtube" ? (
             <>
               <Image
                 src={movie.backdropUrl || movie.posterUrl}
@@ -408,13 +463,13 @@ export function MovieDetails({
                 className="object-cover"
               />
               <YouTubePlayer
-                videoId={movie.video.videoId}
+                videoId={activeVideo.videoId}
                 active
                 muted={trailerMuted}
                 className="absolute inset-0 h-full w-full"
               />
             </>
-          ) : movie.video?.platform === "tiktok" ? (
+          ) : activeVideo?.platform === "tiktok" ? (
             <>
               <Image
                 src={movie.backdropUrl || movie.posterUrl}
@@ -424,7 +479,7 @@ export function MovieDetails({
                 className="object-cover opacity-45"
               />
               <TikTokPlayer
-                videoId={movie.video.videoId}
+                videoId={activeVideo.videoId}
                 active
                 className="absolute inset-0 h-full w-full"
               />
@@ -453,6 +508,12 @@ export function MovieDetails({
             </>
           )}
         </div>
+        <VideoChoices
+          movie={movie}
+          activeVideoId={activeVideo?.videoId}
+          onSelect={(video) => setChosenVideo({ movieId: movie.id, video })}
+          className="-mt-3 mb-5"
+        />
 
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -794,6 +855,9 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
     serverAutoplayPreference,
   );
   const [manualPlaybackEnabled, setManualPlaybackEnabled] = useState(false);
+  const [chosenVideos, setChosenVideos] = useState<Record<string, MovieVideo>>(
+    {},
+  );
   const videoPlaybackEnabled = autoplayEnabled || manualPlaybackEnabled;
   const [selected, setSelected] = useState<Movie | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -1048,14 +1112,15 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
               />
               {videoPlaybackEnabled &&
                 index === activeIndex &&
-                movie.video?.platform === "youtube" && (
+                (chosenVideos[movie.id] ?? movie.video)?.platform ===
+                  "youtube" && (
                   <div
                     data-testid="feed-video-surface"
                     data-video-platform="youtube"
                     className="pointer-events-none absolute inset-0 overflow-hidden bg-black"
                   >
                     <YouTubePlayer
-                      videoId={movie.video.videoId}
+                      videoId={(chosenVideos[movie.id] ?? movie.video)!.videoId}
                       active
                       muted={muted}
                       className="absolute top-1/2 left-1/2 h-full w-auto min-w-full max-w-none -translate-x-1/2 -translate-y-1/2 aspect-video"
@@ -1064,14 +1129,15 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                 )}
               {videoPlaybackEnabled &&
                 index === activeIndex &&
-                movie.video?.platform === "tiktok" && (
+                (chosenVideos[movie.id] ?? movie.video)?.platform ===
+                  "tiktok" && (
                   <div
                     data-testid="feed-video-surface"
                     data-video-platform="tiktok"
                     className="pointer-events-none absolute inset-0 overflow-hidden bg-black"
                   >
                     <TikTokPlayer
-                      videoId={movie.video.videoId}
+                      videoId={(chosenVideos[movie.id] ?? movie.video)!.videoId}
                       active
                       className="h-full w-full"
                     />
@@ -1156,6 +1222,20 @@ export function MovieFeed({ sections }: { sections: MovieRail[] }) {
                       ★ {movie.voteAverage.toFixed(1)}
                     </span>
                   </p>
+                  <VideoChoices
+                    movie={movie}
+                    activeVideoId={
+                      (chosenVideos[movie.id] ?? movie.video)?.videoId
+                    }
+                    onSelect={(video) => {
+                      setChosenVideos((current) => ({
+                        ...current,
+                        [movie.id]: video,
+                      }));
+                      setManualPlaybackEnabled(true);
+                    }}
+                    className="pointer-events-auto mt-2"
+                  />
                   {isFreshSocialTrend(movie) && (
                     <p className="mt-2 w-fit rounded-full bg-fuchsia-600/90 px-3 py-1 text-[11px] font-black text-white shadow-lg">
                       TikTokで話題 ・{" "}

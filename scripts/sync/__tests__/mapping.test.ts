@@ -13,7 +13,7 @@ import {
 } from "../retry.js";
 import { latestSeason, pageEnd, pageLimit, TmdbClient } from "../tmdb.js";
 import type { TmdbDetails, TmdbVideo } from "../types.js";
-import { selectYouTubeVideo } from "../youtube.js";
+import { selectSeasonTrailers, selectYouTubeVideo } from "../youtube.js";
 
 function movie(overrides: Partial<TmdbDetails> = {}): TmdbDetails {
   return {
@@ -212,6 +212,75 @@ describe("video and paging helpers", () => {
       },
     ];
     expect(selectYouTubeVideo(videos)?.key).toBe("trailer");
+  });
+
+  it("prefers a Japanese trailer over a newer one of the same kind", () => {
+    const base = {
+      site: "YouTube",
+      type: "Trailer",
+      official: true,
+      name: "",
+    };
+    expect(
+      selectYouTubeVideo([
+        {
+          ...base,
+          key: "english",
+          iso_639_1: "en",
+          published_at: "2026-10-22",
+        },
+        {
+          ...base,
+          key: "japanese",
+          iso_639_1: "ja",
+          published_at: "2026-08-20",
+        },
+        {
+          ...base,
+          key: "japanese-teaser",
+          type: "Teaser",
+          iso_639_1: "ja",
+          published_at: "2026-10-23",
+        },
+      ])?.key,
+    ).toBe("japanese");
+  });
+
+  it("pairs the show trailer with the newest season's trailer", () => {
+    const trailer = (key: string, published_at: string): TmdbVideo => ({
+      key,
+      site: "YouTube",
+      type: "Trailer",
+      official: true,
+      name: "",
+      published_at,
+    });
+    const show = movie({
+      id: 105248,
+      media_type: "tv",
+      videos: { results: [trailer("season-1", "2022-08-30")] },
+      latest_season: { number: 2, air_date: "2026-10-20" },
+      latest_season_videos: [trailer("season-2", "2026-10-14")],
+    });
+    expect(selectSeasonTrailers(show)).toEqual([
+      { key: "season-1", season: 1 },
+      { key: "season-2", season: 2 },
+    ]);
+
+    // Without a season trailer, the show trailer stays unlabelled.
+    expect(selectSeasonTrailers({ ...show, latest_season_videos: [] })).toEqual(
+      [{ key: "season-1", season: null }],
+    );
+    // A long-running show's older trailer is not called season 1.
+    expect(
+      selectSeasonTrailers({
+        ...show,
+        latest_season: { number: 4, air_date: "2026-10-20" },
+      }),
+    ).toEqual([
+      { key: "season-1", season: null },
+      { key: "season-2", season: 4 },
+    ]);
   });
 
   it("caps TMDB pages and computes deterministic backoff", () => {

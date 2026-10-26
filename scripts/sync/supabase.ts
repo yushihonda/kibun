@@ -152,6 +152,7 @@ export class SyncStore {
     mediaType: MediaType,
     tmdbMovieId: number,
     videoKey: string | null,
+    seasonNumber: number | null = null,
   ): Promise<void> {
     if (!videoKey) return;
 
@@ -170,6 +171,7 @@ export class SyncStore {
         video_id: videoKey,
         url: `https://www.youtube.com/watch?v=${videoKey}`,
         status: "approved",
+        season_number: seasonNumber,
       },
       { onConflict: "platform,video_id" },
     );

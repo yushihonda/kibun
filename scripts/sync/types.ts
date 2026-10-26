@@ -75,6 +75,7 @@ export interface TmdbVideo {
   official: boolean;
   name: string;
   published_at: string;
+  iso_639_1?: string | null;
 }
 
 export interface TmdbProvider {
@@ -116,6 +117,8 @@ export interface TmdbDetails extends Omit<TmdbListMovie, "genre_ids"> {
   number_of_seasons: number | null;
   number_of_episodes: number | null;
   latest_season?: { number: number; air_date: string } | null;
+  // Trailers TMDB files under the latest season rather than the show.
+  latest_season_videos?: TmdbVideo[];
   "watch/providers"?: {
     results: Record<
       string,

@@ -1,6 +1,7 @@
 import { buildEmotionProfile, generateEmotionTags } from "./emotions.js";
 import { mapJapaneseProviders, mapTmdbMovie } from "./mapping.js";
 import { SyncStore } from "./supabase.js";
+import { selectSeasonTrailers } from "./youtube.js";
 import { pageEnd, TmdbClient } from "./tmdb.js";
 import {
   isMissingHttpResource,
@@ -270,14 +271,17 @@ export async function runSync(config: SyncConfig): Promise<{
                 store.replaceProviders(mediaType, tmdbId, providers, syncedAt),
               { attempts: 4, shouldRetry: isRetryableHttpError },
             ),
-            withRetry(
-              () =>
-                store.syncYouTubeVideo(
-                  mediaType,
-                  tmdbId,
-                  movie.youtube_video_key,
-                ),
-              { attempts: 4, shouldRetry: isRetryableHttpError },
+            ...selectSeasonTrailers(details).map((trailer) =>
+              withRetry(
+                () =>
+                  store.syncYouTubeVideo(
+                    mediaType,
+                    tmdbId,
+                    trailer.key,
+                    trailer.season,
+                  ),
+                { attempts: 4, shouldRetry: isRetryableHttpError },
+              ),
             ),
           ]);
           succeeded += 1;

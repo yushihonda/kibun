@@ -304,7 +304,19 @@ export class TmdbClient {
         include_video_language: "ja,en,null",
       },
     );
-    return normalizedDetails(response, mediaType);
+    const details = normalizedDetails(response, mediaType);
+    const season = details.latest_season?.number ?? 0;
+    if (mediaType === "tv" && season >= 2) {
+      // A missing season video list should not fail the whole title.
+      details.latest_season_videos = await this.request<{
+        results?: TmdbVideo[];
+      }>(`/tv/${movieId}/season/${season}/videos`, {
+        include_video_language: "ja,en,null",
+      })
+        .then((videos) => videos.results ?? [])
+        .catch(() => []);
+    }
+    return details;
   }
 
   private async request<T>(
