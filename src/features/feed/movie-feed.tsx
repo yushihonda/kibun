@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ResilientImage as Image } from "@/components/resilient-image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   type FormEvent,
@@ -35,6 +36,13 @@ import {
   trackProductEvent,
 } from "@/lib/analytics/client";
 import { savePendingInteraction } from "@/lib/auth/pending-actions";
+
+// Comments load only when a detail sheet opens, keeping the feed bundle small.
+const CommentSection = dynamic(() =>
+  import("@/features/community/comment-section").then(
+    (module) => module.CommentSection,
+  ),
+);
 
 const compactNumber = new Intl.NumberFormat("ja-JP", {
   notation: "compact",
@@ -694,6 +702,9 @@ export function MovieDetails({
         {message && (
           <p className="mt-3 text-center text-xs text-white/65">{message}</p>
         )}
+        <div className="mt-8">
+          <CommentSection key={movie.id} target={{ movieId: movie.id }} />
+        </div>
         {recommendations.length > 0 && (
           <section className="mt-8" aria-label="この作品が好きなら">
             <h3 className="text-lg font-black">この作品が好きなら</h3>

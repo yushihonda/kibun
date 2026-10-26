@@ -83,6 +83,9 @@ export default async function AdminOperationsPage() {
           <Link href="/admin/picks" className="text-white/50">
             編集部
           </Link>
+          <Link href="/admin/reports" className="text-white/50">
+            通報
+          </Link>
           <Link href="/admin/operations" className="text-lime-300">
             運用
           </Link>
