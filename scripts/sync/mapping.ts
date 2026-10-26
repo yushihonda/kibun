@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { selectYouTubeVideo } from "./youtube";
 import type { EmotionProfile } from "./emotions";
-import { MANUAL_MOVIE_METADATA } from "./manual-metadata";
+import { manualMetadataFor } from "./manual-metadata";
 
 const providerTypes: ProviderType[] = ["flatrate", "rent", "buy"];
 
@@ -26,17 +26,18 @@ export function mapTmdbMovie(
         source: emotion.length ? "legacy" : "unclassified",
       }
     : emotion;
+  const manual = manualMetadataFor(details.media_type, details.id);
+  const title = manual?.title ?? details.title;
   const aliases = [
+    ...(title !== details.title ? [details.title] : []),
     ...(details.alternative_titles?.titles ?? []).map((entry) => entry.title),
-    ...(details.media_type === "movie"
-      ? (MANUAL_MOVIE_METADATA[details.id]?.aliases ?? [])
-      : []),
+    ...(manual?.aliases ?? []),
   ]
     .map((alias) => alias.trim())
     .filter(
       (alias, index, items) =>
         alias &&
-        alias !== details.title &&
+        alias !== title &&
         alias !== details.original_title &&
         items.indexOf(alias) === index,
     )
@@ -53,7 +54,7 @@ export function mapTmdbMovie(
   const base = {
     tmdb_id: details.id,
     media_type: details.media_type,
-    title: details.title,
+    title,
     original_title: details.original_title,
     overview: details.overview,
     release_date: details.release_date || null,

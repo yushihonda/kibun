@@ -137,6 +137,41 @@ describe("TikTok RapidAPI adapter", () => {
     });
   });
 
+  it("leaves later-season posts to the sequel entry", () => {
+    const season1 = [
+      "サイバーパンク エッジランナーズ",
+      ["エッジランナーズ"],
+    ] as const;
+    const season2 = [
+      "サイバーパンク エッジランナーズ2",
+      ["エッジランナーズ2", "エッジランナーズ シーズン2"],
+    ] as const;
+    const score = (
+      caption: string,
+      [title, aliases]: typeof season1 | typeof season2,
+    ) =>
+      scoreTikTokTitleRelevance({ caption, hashtags: [] }, title, [...aliases]);
+
+    for (const caption of [
+      "エッジランナーズ2 やばすぎる",
+      "エッジランナーズ シーズン2 最高",
+      "#エッジランナーズ2 #anime",
+      "サイバーパンク エッジランナーズ S2 観た",
+    ]) {
+      expect(score(caption, season1)).toBe(0);
+      expect(score(caption, season2)).toBeGreaterThanOrEqual(0.7);
+    }
+    expect(
+      score("エッジランナーズ 2回目の視聴", season1),
+    ).toBeGreaterThanOrEqual(0.7);
+    expect(
+      score("エッジランナーズ 2022年の名作", season1),
+    ).toBeGreaterThanOrEqual(0.7);
+    expect(
+      score("エッジランナーズ2 の前に エッジランナーズ を復習", season1),
+    ).toBeGreaterThanOrEqual(0.7);
+  });
+
   it("keeps short ambiguous titles only when an exact hashtag matches", () => {
     expect(
       scoreTikTokTitleRelevance(

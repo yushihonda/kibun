@@ -114,7 +114,7 @@ function aliasesFor(movie: MovieRow): string[] {
 
 function candidateScore(movie: MovieRow): number {
   const now = Date.now();
-  const freshness = [movie.trending_at, movie.theatrical_at]
+  const freshness = [movie.trending_at, movie.theatrical_at, movie.release_date]
     .map((value) => (value ? Date.parse(value) : 0))
     .reduce((max, value) => Math.max(max, value), 0);
   const ageDays = freshness ? Math.max(0, now - freshness) / 86_400_000 : 60;
@@ -144,7 +144,13 @@ async function loadCandidates(
   }
 
   const batchLimit = Math.min(100, Math.max(limit * 2, 20));
-  const [trending, theatrical, popular] = await Promise.all([
+  // New releases, such as a fresh season TMDB lists as its own show, are
+  // often discussed on TikTok before they show up in TMDB's trending lists.
+  const today = new Date().toISOString().slice(0, 10);
+  const recentSince = new Date(Date.now() - 45 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const [trending, theatrical, popular, recent] = await Promise.all([
     supabase
       .from("movies")
       .select(movieFields)
@@ -168,13 +174,22 @@ async function loadCandidates(
       .eq("adult", false)
       .order("popularity", { ascending: false })
       .limit(batchLimit),
+    supabase
+      .from("movies")
+      .select(movieFields)
+      .in("media_type", mediaTypes)
+      .eq("adult", false)
+      .gte("release_date", recentSince)
+      .lte("release_date", today)
+      .order("popularity", { ascending: false })
+      .limit(batchLimit),
   ]);
-  for (const result of [trending, theatrical, popular]) {
+  for (const result of [trending, theatrical, popular, recent]) {
     if (result.error) throw result.error;
   }
   const candidates = [
     ...new Map(
-      [trending.data, theatrical.data, popular.data]
+      [trending.data, theatrical.data, popular.data, recent.data]
         .flat()
         .filter((movie): movie is NonNullable<typeof movie> => Boolean(movie))
         .map((movie) => [movie.id, movie as unknown as MovieRow] as const),

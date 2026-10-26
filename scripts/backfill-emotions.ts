@@ -1,7 +1,7 @@
 import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import { buildEmotionProfile } from "./sync/emotions.js";
-import { MANUAL_MOVIE_METADATA } from "./sync/manual-metadata.js";
+import { manualMetadataFor } from "./sync/manual-metadata.js";
 import type { TmdbDetails, TmdbGenre } from "./sync/types.js";
 import { describeError, retrySupabaseQuery } from "./supabase-query.js";
 
@@ -149,9 +149,7 @@ async function main() {
       });
       const aliases = [
         row.original_title,
-        ...(row.media_type === "movie"
-          ? (MANUAL_MOVIE_METADATA[row.tmdb_id]?.aliases ?? [])
-          : []),
+        ...(manualMetadataFor(row.media_type, row.tmdb_id)?.aliases ?? []),
       ]
         .map((alias) => alias?.trim())
         .filter(

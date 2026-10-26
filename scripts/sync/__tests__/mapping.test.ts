@@ -67,6 +67,29 @@ describe("TMDB mapping", () => {
     expect(first.last_synced_at).not.toBe(second.last_synced_at);
   });
 
+  it("applies curated Japanese titles to TV entries without touching movies", () => {
+    const season2 = mapTmdbMovie(
+      movie({
+        id: 326788,
+        media_type: "tv",
+        title: "Cyberpunk: Edgerunners 2",
+        original_title: "Cyberpunk: Edgerunners 2",
+      }),
+      ["discover"],
+      ["高揚感"],
+      "2026-10-26T00:00:00Z",
+    );
+    expect(season2.title).toBe("サイバーパンク エッジランナーズ2");
+    expect(season2.aliases).toContain("エッジランナーズ2");
+    expect(season2.aliases).not.toContain("サイバーパンク エッジランナーズ2");
+
+    // TMDB movie IDs overlap with TV IDs, so a movie with the same number
+    // must keep its own title.
+    expect(
+      mapTmdbMovie(movie({ id: 326788 }), [], [], "2026-10-26T00:00:00Z").title,
+    ).toBe("作品");
+  });
+
   it("marks weekly trends without putting the timestamp in the hash", () => {
     const first = mapTmdbMovie(
       movie(),

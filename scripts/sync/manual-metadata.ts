@@ -1,6 +1,8 @@
 import type { EmotionTag } from "./types";
 
 export type ManualMovieMetadata = {
+  // Japanese display title for entries TMDB has not localized.
+  title?: string;
   aliases?: string[];
   emotionScores?: Partial<Record<EmotionTag, number>>;
 };
@@ -49,3 +51,36 @@ export const MANUAL_MOVIE_METADATA: Record<number, ManualMovieMetadata> = {
     emotionScores: { 癒やし: 0.94, 心温まる: 0.82, 考えさせられる: 0.76 },
   },
 };
+
+// TMDB uses separate ID spaces for movies and TV, so TV entries live apart.
+// Later seasons that TMDB lists as their own show are named here so that
+// search and TikTok matching keep them distinct from the first season.
+export const MANUAL_TV_METADATA: Record<number, ManualMovieMetadata> = {
+  105248: {
+    title: "サイバーパンク エッジランナーズ",
+    aliases: [
+      "エッジランナーズ",
+      "サイバーパンクエッジランナーズ",
+      "Cyberpunk Edgerunners",
+    ],
+  },
+  326788: {
+    title: "サイバーパンク エッジランナーズ2",
+    aliases: [
+      "エッジランナーズ2",
+      "エッジランナーズ シーズン2",
+      "サイバーパンク エッジランナーズ シーズン2",
+      "Cyberpunk Edgerunners 2",
+      "Cyberpunk Edgerunners Season 2",
+    ],
+  },
+};
+
+export function manualMetadataFor(
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+): ManualMovieMetadata | undefined {
+  return mediaType === "movie"
+    ? MANUAL_MOVIE_METADATA[tmdbId]
+    : MANUAL_TV_METADATA[tmdbId];
+}
