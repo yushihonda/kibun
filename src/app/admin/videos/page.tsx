@@ -25,6 +25,9 @@ export default async function AdminVideosPage() {
           <Link href="/admin/picks" className="text-white/50 hover:text-white">
             編集部
           </Link>
+          <Link href="/admin/reports" className="text-white/50">
+            通報
+          </Link>
           <Link
             href="/admin/operations"
             className="text-white/50 hover:text-white"

@@ -25,6 +25,9 @@ export default async function AdminPicksPage() {
           <Link href="/admin/picks" className="text-lime-300">
             編集部
           </Link>
+          <Link href="/admin/reports" className="text-white/50">
+            通報
+          </Link>
           <Link
             href="/admin/operations"
             className="text-white/50 hover:text-white"

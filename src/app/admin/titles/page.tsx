@@ -25,6 +25,9 @@ export default async function AdminTitlesPage() {
           <Link href="/admin/videos" className="text-white/50">
             動画
           </Link>
+          <Link href="/admin/reports" className="text-white/50">
+            通報
+          </Link>
           <Link href="/admin/operations" className="text-white/50">
             運用
           </Link>

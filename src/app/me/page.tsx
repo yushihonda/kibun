@@ -3,46 +3,29 @@ import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
-import { MyShelf, type ShelfItem } from "@/features/me/my-shelf";
+import { MyShelf } from "@/features/me/my-shelf";
+import { ProfileSettings } from "@/features/me/profile-settings";
 import { PersonalizationSettings } from "@/features/me/personalization-settings";
 import { loadCatalogMovies } from "@/lib/movies/catalog";
+import { loadShelfItems } from "@/lib/movies/shelf";
 import { loadRecommendations } from "@/lib/recommendations/server";
-
-type ShelfRow = {
-  status: "WATCHED" | "WATCHLIST" | "NONE";
-  is_favorite: boolean;
-  rating: number | null;
-  updated_at: string;
-  movie: {
-    id: string;
-    title: string;
-    poster_path: string | null;
-  } | null;
-};
 
 export default async function MyPage() {
   const supabase = await createClient();
   const userResult = supabase ? await supabase.auth.getUser() : null;
   const user = userResult?.data.user ?? null;
-  const { data: shelfData } = user
-    ? await supabase!
-        .from("user_movie_interactions")
-        .select(
-          "status,is_favorite,rating,updated_at,movie:movies(id,title,poster_path)",
-        )
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-    : { data: null };
   const [
+    shelfItems,
     { data: profile },
     { data: preference },
     movieChoices,
     recommendationResult,
   ] = user
     ? await Promise.all([
+        loadShelfItems(supabase!, user.id),
         supabase!
           .from("profiles")
-          .select("display_name,role")
+          .select("display_name,role,bio,shelf_public")
           .eq("id", user.id)
           .maybeSingle(),
         supabase!
@@ -58,30 +41,17 @@ export default async function MyPage() {
           personalized: false,
         })),
       ])
-    : [{ data: null }, { data: null }, [], { movies: [], personalized: false }];
-  const shelf = (shelfData ?? []) as unknown as ShelfRow[];
-  const shelfMovieIds = shelf.flatMap((item) =>
-    item.movie ? [item.movie.id] : [],
+    : [
+        [],
+        { data: null },
+        { data: null },
+        [],
+        { movies: [], personalized: false },
+      ];
+  const favoriteIds = shelfItems.flatMap((item) =>
+    item.isFavorite && item.movie ? [item.movie.id] : [],
   );
-  const shelfMovies = shelfMovieIds.length
-    ? await loadCatalogMovies(supabase!, {
-        movieIds: shelfMovieIds,
-        limit: 500,
-      }).catch(() => [])
-    : [];
-  const moviesById = new Map(shelfMovies.map((movie) => [movie.id, movie]));
-  const shelfItems: ShelfItem[] = shelf.map((item) => ({
-    key: item.movie?.id ?? item.updated_at,
-    title: item.movie?.title ?? "削除された作品",
-    posterUrl: item.movie?.poster_path
-      ? `https://image.tmdb.org/t/p/w780${item.movie.poster_path}`
-      : null,
-    status: item.status,
-    isFavorite: item.is_favorite,
-    rating: item.rating,
-    movie: (item.movie && moviesById.get(item.movie.id)) ?? null,
-  }));
-  const favoriteCount = shelf.filter((item) => item.is_favorite).length;
+  const favoriteCount = shelfItems.filter((item) => item.isFavorite).length;
 
   return (
     <main className="min-h-dvh bg-zinc-950 pb-28 text-white">
@@ -140,11 +110,7 @@ export default async function MyPage() {
               </p>
             </div>
             <a
-              href={`/api/share?title=わたしのお気に入り${favoriteCount}選&movies=${shelf
-                .filter((item) => item.is_favorite && item.movie)
-                .map((item) => item.movie!.id)
-                .slice(0, 9)
-                .join(",")}`}
+              href={`/api/share?title=わたしのお気に入り${favoriteCount}選&movies=${favoriteIds.slice(0, 9).join(",")}`}
               target="_blank"
               className="flex items-center gap-2 rounded-full border border-white/15 px-4 py-2.5 text-xs font-bold hover:bg-white/5"
             >
@@ -161,13 +127,22 @@ export default async function MyPage() {
         />
 
         {user && (
+          <ProfileSettings
+            userId={user.id}
+            initialDisplayName={
+              profile?.display_name ?? user.user_metadata?.full_name ?? ""
+            }
+            initialBio={profile?.bio ?? ""}
+            initialShelfPublic={profile?.shelf_public === true}
+          />
+        )}
+
+        {user && (
           <PersonalizationSettings
             initialEnabled={preference?.personalization_enabled !== false}
             initialGenres={preference?.preferred_genres ?? []}
             initialEmotions={preference?.preferred_emotions ?? []}
-            initialFavoriteMovieIds={shelf
-              .filter((item) => item.is_favorite && item.movie)
-              .map((item) => item.movie!.id)}
+            initialFavoriteMovieIds={favoriteIds}
             movieChoices={movieChoices.map((movie) => ({
               id: movie.id,
               title: movie.title,
