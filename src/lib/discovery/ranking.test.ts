@@ -11,6 +11,7 @@ import {
   isRecommendationEligible,
   isUpcomingTitle,
   newSeasonLabel,
+  trendMomentum,
   socialTrendBoost,
   weightedRating,
 } from "./ranking";
@@ -208,5 +209,37 @@ describe("newSeasonLabel", () => {
         now,
       ),
     ).toBeNull();
+  });
+});
+
+describe("trendMomentum", () => {
+  it("puts current trends ahead of long-standing favorites", () => {
+    const classic = title({
+      id: "classic",
+      releaseDate: "1999-01-01",
+      voteAverage: 8.8,
+      voteCount: 30_000,
+      popularity: 400,
+    });
+    const weeklyTrend = title({
+      id: "weekly",
+      releaseDate: "2026-07-20",
+      voteAverage: 7.2,
+      voteCount: 300,
+      trendingAt: "2026-08-06T00:00:00Z",
+    });
+    const newSeason = title({
+      id: "season",
+      mediaType: "tv",
+      releaseDate: "2022-09-13",
+      voteAverage: 8.5,
+      latestSeason: { number: 2, airDate: "2026-08-01" },
+    });
+    expect(trendMomentum(weeklyTrend, now)).toBeGreaterThan(
+      trendMomentum(classic, now),
+    );
+    expect(trendMomentum(newSeason, now)).toBeGreaterThan(
+      trendMomentum(classic, now),
+    );
   });
 });

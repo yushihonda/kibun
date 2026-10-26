@@ -161,6 +161,30 @@ export function trendScore(movie: Movie, now = new Date()): number {
   return discoveryScore(movie, now) + Math.max(0, 10 - trendAge) * 2;
 }
 
+// How much a title is in the news right now, for viewers without taste
+// signals: social buzz, weekly trends, theatrical runs, new seasons and new
+// releases outweigh long-standing popularity, which only breaks ties.
+export function trendMomentum(movie: Movie, now = new Date()): number {
+  const trendingAt = dateValue(movie.trendingAt);
+  const trendAgeDays =
+    trendingAt === null
+      ? null
+      : Math.max(0, now.getTime() - trendingAt) / DAY_MS;
+  const releaseAge = releaseAgeDays(movie, now);
+  return (
+    socialTrendBoost(movie, now) +
+    (isFreshTrend(movie, now)
+      ? 30 + Math.max(0, 10 - (trendAgeDays ?? 10))
+      : 0) +
+    (isNowPlayingTitle(movie, now) ? 25 : 0) +
+    (newSeasonLabel(movie, now) ? 20 : 0) +
+    (releaseAge !== null && releaseAge >= 0 && releaseAge <= 60
+      ? 15 - releaseAge / 4
+      : 0) +
+    discoveryScore(movie, now) / 20
+  );
+}
+
 export function theatricalScore(movie: Movie, now = new Date()): number {
   const theatricalAt = dateValue(movie.theatricalAt) ?? 0;
   const freshness = Math.max(0, now.getTime() - theatricalAt) / DAY_MS;

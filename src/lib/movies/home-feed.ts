@@ -12,6 +12,7 @@ import {
   recentScore,
   socialTrendBoost,
   theatricalScore,
+  trendMomentum,
   trendScore,
 } from "@/lib/discovery/ranking";
 import { loadCatalogMovies, type CatalogMovie } from "@/lib/movies/catalog";
@@ -445,20 +446,29 @@ export async function loadHomeFeed(
     );
   }
 
-  const trendRank = (movie: Movie) => discoveryScore(movie, now);
+  // Top video feed: the latest trends first, alternated with taste picks
+  // when the viewer has signals.
+  const byMomentum = (movies: Movie[]) =>
+    [...movies].sort(
+      (a, b) =>
+        trendMomentum(b, now) - trendMomentum(a, now) ||
+        a.id.localeCompare(b.id),
+    );
   return {
     sections: prioritizeHomeFeedSections(sections, {
       limit: 64,
       rankVideos: profile
         ? (movies) =>
             interleaveForDiscovery(
-              blendWithInterest(movies, trendRank, affinity, 0.6),
-              [...movies].sort(
-                (a, b) =>
-                  trendRank(b) - trendRank(a) || a.id.localeCompare(b.id),
+              blendWithInterest(
+                movies,
+                (movie) => trendMomentum(movie, now),
+                affinity,
+                0.6,
               ),
+              byMomentum(movies),
             )
-        : undefined,
+        : byMomentum,
     }).map((rail) => ({ ...rail, movies: rail.movies.map(toFeedMovie) })),
     personalized: recommendationResult.personalized,
     generatedAt,
